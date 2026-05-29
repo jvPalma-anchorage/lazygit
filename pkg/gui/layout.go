@@ -144,7 +144,14 @@ func (gui *Gui) layout(g *gocui.Gui) error {
 		if err != nil && !errors.Is(err, gocui.ErrUnknownView) {
 			return err
 		}
-		view.Visible = gui.helpers.Window.GetViewNameForWindow(context.GetWindowName()) == context.GetViewName()
+		visible := gui.helpers.Window.GetViewNameForWindow(context.GetWindowName()) == context.GetViewName()
+		// A transient view (e.g. commitFiles) lives in a side window; if that
+		// window is hidden by config it was omitted from the computed dimensions,
+		// so keep its view hidden instead of re-showing it here.
+		if context.GetKind() == types.SIDE_CONTEXT && !gui.isSideWindowVisible(context.GetWindowName()) {
+			visible = false
+		}
+		view.Visible = visible
 	}
 
 	if gui.PrevLayout.Information != informationStr {

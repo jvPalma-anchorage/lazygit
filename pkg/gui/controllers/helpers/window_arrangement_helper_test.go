@@ -561,6 +561,335 @@ func TestGetWindowDimensions(t *testing.T) {
 			B: statusSpacer2
 			`,
 		},
+		{
+			name: "status panel hidden",
+			mutateArgs: func(args *WindowArrangementArgs) {
+				args.UserConfig.Gui.ShowStatusPanel = false
+			},
+			expected: `
+			╭files──────────────────╮╭main────────────────────────────────────────────╮
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			╰───────────────────────╯│                                                │
+			╭branches───────────────╮│                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			╰───────────────────────╯│                                                │
+			╭commits────────────────╮│                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			╰───────────────────────╯│                                                │
+			╭stash──────────────────╮│                                                │
+			│                       ││                                                │
+			╰───────────────────────╯╰────────────────────────────────────────────────╯
+			<options──────────────────────────────────────────────────────>A<B────────>
+			A: statusSpacer1
+			B: information
+			`,
+		},
+		{
+			name: "commits panel hidden",
+			mutateArgs: func(args *WindowArrangementArgs) {
+				args.UserConfig.Gui.ShowCommitsPanel = false
+			},
+			expected: `
+			╭status─────────────────╮╭main────────────────────────────────────────────╮
+			│                       ││                                                │
+			╰───────────────────────╯│                                                │
+			╭files──────────────────╮│                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			╰───────────────────────╯│                                                │
+			╭branches───────────────╮│                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			╰───────────────────────╯│                                                │
+			╭stash──────────────────╮│                                                │
+			│                       ││                                                │
+			╰───────────────────────╯╰────────────────────────────────────────────────╯
+			<options──────────────────────────────────────────────────────>A<B────────>
+			A: statusSpacer1
+			B: information
+			`,
+		},
+		{
+			name: "stash panel hidden",
+			mutateArgs: func(args *WindowArrangementArgs) {
+				args.UserConfig.Gui.ShowStashPanel = false
+			},
+			expected: `
+			╭status─────────────────╮╭main────────────────────────────────────────────╮
+			│                       ││                                                │
+			╰───────────────────────╯│                                                │
+			╭files──────────────────╮│                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			╰───────────────────────╯│                                                │
+			╭branches───────────────╮│                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			╰───────────────────────╯│                                                │
+			╭commits────────────────╮│                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			╰───────────────────────╯╰────────────────────────────────────────────────╯
+			<options──────────────────────────────────────────────────────>A<B────────>
+			A: statusSpacer1
+			B: information
+			`,
+		},
+		{
+			name: "all optional side panels hidden",
+			mutateArgs: func(args *WindowArrangementArgs) {
+				args.UserConfig.Gui.ShowStatusPanel = false
+				args.UserConfig.Gui.ShowCommitsPanel = false
+				args.UserConfig.Gui.ShowStashPanel = false
+			},
+			expected: `
+			╭files──────────────────╮╭main────────────────────────────────────────────╮
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			╰───────────────────────╯│                                                │
+			╭branches───────────────╮│                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			╰───────────────────────╯╰────────────────────────────────────────────────╯
+			<options──────────────────────────────────────────────────────>A<B────────>
+			A: statusSpacer1
+			B: information
+			`,
+		},
+		{
+			name: "status hidden with expandFocusedSidePanel",
+			mutateArgs: func(args *WindowArrangementArgs) {
+				args.UserConfig.Gui.ShowStatusPanel = false
+				args.UserConfig.Gui.ExpandFocusedSidePanel = true
+			},
+			expected: `
+			╭files──────────────────╮╭main────────────────────────────────────────────╮
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			╰───────────────────────╯│                                                │
+			╭branches───────────────╮│                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			╰───────────────────────╯│                                                │
+			╭commits────────────────╮│                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			│                       ││                                                │
+			╰───────────────────────╯│                                                │
+			╭stash──────────────────╮│                                                │
+			│                       ││                                                │
+			╰───────────────────────╯╰────────────────────────────────────────────────╯
+			<options──────────────────────────────────────────────────────>A<B────────>
+			A: statusSpacer1
+			B: information
+			`,
+		},
+		{
+			name: "split main panel (vertical) stays 50/50 by default",
+			mutateArgs: func(args *WindowArrangementArgs) {
+				args.SplitMainPanel = true
+				args.UserConfig.Gui.MainPanelSplitMode = "vertical"
+			},
+			expected: `
+╭status─────────────────╮╭main────────────────────────────────────────────╮
+│                       ││                                                │
+╰───────────────────────╯│                                                │
+╭files──────────────────╮│                                                │
+│                       ││                                                │
+│                       ││                                                │
+│                       ││                                                │
+│                       ││                                                │
+│                       ││                                                │
+│                       ││                                                │
+╰───────────────────────╯│                                                │
+╭branches───────────────╮│                                                │
+│                       ││                                                │
+│                       ││                                                │
+│                       │╰────────────────────────────────────────────────╯
+│                       │╭secondary───────────────────────────────────────╮
+│                       ││                                                │
+│                       ││                                                │
+╰───────────────────────╯│                                                │
+╭commits────────────────╮│                                                │
+│                       ││                                                │
+│                       ││                                                │
+│                       ││                                                │
+│                       ││                                                │
+│                       ││                                                │
+╰───────────────────────╯│                                                │
+╭stash──────────────────╮│                                                │
+│                       ││                                                │
+╰───────────────────────╯╰────────────────────────────────────────────────╯
+<options──────────────────────────────────────────────────────>A<B────────>
+A: statusSpacer1
+B: information
+			`,
+		},
+		{
+			name: "split main panel, expandFocusedStagingPanel, unstaged (top) expanded while browsing",
+			mutateArgs: func(args *WindowArrangementArgs) {
+				args.SplitMainPanel = true
+				args.UserConfig.Gui.MainPanelSplitMode = "vertical"
+				args.UserConfig.Gui.ExpandFocusedStagingPanel = true
+			},
+			expected: `
+╭status─────────────────╮╭main────────────────────────────────────────────╮
+│                       ││                                                │
+╰───────────────────────╯│                                                │
+╭files──────────────────╮│                                                │
+│                       ││                                                │
+│                       ││                                                │
+│                       ││                                                │
+│                       ││                                                │
+│                       ││                                                │
+│                       ││                                                │
+╰───────────────────────╯│                                                │
+╭branches───────────────╮│                                                │
+│                       ││                                                │
+│                       ││                                                │
+│                       ││                                                │
+│                       ││                                                │
+│                       ││                                                │
+│                       ││                                                │
+╰───────────────────────╯│                                                │
+╭commits────────────────╮│                                                │
+│                       ││                                                │
+│                       ││                                                │
+│                       │╰────────────────────────────────────────────────╯
+│                       │╭secondary───────────────────────────────────────╮
+│                       ││                                                │
+╰───────────────────────╯│                                                │
+╭stash──────────────────╮│                                                │
+│                       ││                                                │
+╰───────────────────────╯╰────────────────────────────────────────────────╯
+<options──────────────────────────────────────────────────────>A<B────────>
+A: statusSpacer1
+B: information
+			`,
+		},
+		{
+			name: "split main panel, expandFocusedStagingPanel, inverts when staged (bottom) focused",
+			mutateArgs: func(args *WindowArrangementArgs) {
+				args.SplitMainPanel = true
+				args.UserConfig.Gui.MainPanelSplitMode = "vertical"
+				args.UserConfig.Gui.ExpandFocusedStagingPanel = true
+				args.CurrentWindow = "secondary"
+			},
+			expected: `
+╭status─────────────────╮╭main────────────────────────────────────────────╮
+│                       ││                                                │
+╰───────────────────────╯│                                                │
+╭files──────────────────╮│                                                │
+│                       ││                                                │
+│                       │╰────────────────────────────────────────────────╯
+│                       │╭secondary───────────────────────────────────────╮
+│                       ││                                                │
+│                       ││                                                │
+│                       ││                                                │
+╰───────────────────────╯│                                                │
+╭branches───────────────╮│                                                │
+│                       ││                                                │
+│                       ││                                                │
+│                       ││                                                │
+│                       ││                                                │
+│                       ││                                                │
+│                       ││                                                │
+╰───────────────────────╯│                                                │
+╭commits────────────────╮│                                                │
+│                       ││                                                │
+│                       ││                                                │
+│                       ││                                                │
+│                       ││                                                │
+│                       ││                                                │
+╰───────────────────────╯│                                                │
+╭stash──────────────────╮│                                                │
+│                       ││                                                │
+╰───────────────────────╯╰────────────────────────────────────────────────╯
+<options──────────────────────────────────────────────────────>A<B────────>
+A: statusSpacer1
+B: information
+			`,
+		},
 	}
 
 	for _, test := range tests {

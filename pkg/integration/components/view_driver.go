@@ -41,6 +41,16 @@ func (self *ViewDriver) Title(expected *TextMatcher) *ViewDriver {
 	return self
 }
 
+// asserts that the view has the expected title prefix (e.g. the "[1]" jump-key badge)
+func (self *ViewDriver) TitlePrefix(expected *TextMatcher) *ViewDriver {
+	self.t.assertWithRetries(func() (bool, string) {
+		actual := self.getView().TitlePrefix
+		return expected.context(fmt.Sprintf("%s title prefix", self.context)).test(actual)
+	})
+
+	return self
+}
+
 func (self *ViewDriver) Clear() *ViewDriver {
 	// clearing multiple times in case there's multiple lines
 	//  (the clear button only clears a single line at a time)

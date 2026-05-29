@@ -585,6 +585,11 @@
           "description": "The weight of the expanded side panel, relative to the other panels. 2 means twice as tall as the other panels. Only relevant if `expandFocusedSidePanel` is true.",
           "default": 2
         },
+        "expandFocusedStagingPanel": {
+          "type": "boolean",
+          "description": "If true, when the main window is split in two (e.g. the selected file has both staged and unstaged changes), give the focused section 80% of the space (height when stacked, width when side-by-side) and the other 20%, instead of an even 50/50 split. The split starts expanded on the unstaged (top/left) section and inverts when you focus the staged (bottom/right) section.",
+          "default": false
+        },
         "mainPanelSplitMode": {
           "type": "string",
           "enum": [
@@ -697,6 +702,21 @@
         "showPanelJumps": {
           "type": "boolean",
           "description": "If true, show jump-to-window keybindings in window titles.",
+          "default": true
+        },
+        "showStatusPanel": {
+          "type": "boolean",
+          "description": "If true (default), show the Status panel in the side panel column. If false, it is hidden and its space is given to the other side panels.",
+          "default": true
+        },
+        "showCommitsPanel": {
+          "type": "boolean",
+          "description": "If true (default), show the Commits panel (and its Reflog tab) in the side panel column. If false, it is hidden and its space is given to the other side panels.",
+          "default": true
+        },
+        "showStashPanel": {
+          "type": "boolean",
+          "description": "If true (default), show the Stash panel in the side panel column. If false, it is hidden and its space is given to the other side panels.",
           "default": true
         },
         "showIcons": {

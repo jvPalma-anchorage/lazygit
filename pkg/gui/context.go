@@ -37,6 +37,8 @@ func NewContextMgr(
 // use when you don't want to return to the original context upon
 // hitting escape: you want to go that context's parent instead.
 func (self *ContextMgr) Replace(c types.Context) {
+	c = self.focusableSideContext(c)
+
 	if !c.IsFocusable() {
 		return
 	}
@@ -55,7 +57,24 @@ func (self *ContextMgr) Replace(c types.Context) {
 	self.Activate(c, types.OnFocusOpts{})
 }
 
+// focusableSideContext redirects focus away from a side context whose window is
+// currently hidden by config (showStatusPanel / showCommitsPanel /
+// showStashPanel). Such a window isn't laid out, so focusing it would strand the
+// cursor on an invisible panel; the always-visible Files context is used
+// instead. This is the single choke point that keeps every explicit navigation
+// (filtering, custom patch, fixup, conflict resolution, repo restore, ...) from
+// landing on a hidden panel, rather than guarding each call site.
+func (self *ContextMgr) focusableSideContext(c types.Context) types.Context {
+	if c.GetKind() == types.SIDE_CONTEXT && !self.gui.isSideWindowVisible(c.GetWindowName()) {
+		return self.gui.State.Contexts.Files
+	}
+
+	return c
+}
+
 func (self *ContextMgr) Push(c types.Context, opts types.OnFocusOpts) {
+	c = self.focusableSideContext(c)
+
 	if !c.IsFocusable() {
 		return
 	}

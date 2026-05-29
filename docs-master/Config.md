@@ -110,6 +110,13 @@ gui:
   # is true.
   expandedSidePanelWeight: 2
 
+  # If true, when the main window is split in two (e.g. the selected file has both
+  # staged and unstaged changes), give the focused section 80% of the space
+  # (height when stacked, width when side-by-side) and the other 20%, instead of
+  # an even 50/50 split. The split starts expanded on the unstaged (top/left)
+  # section and inverts when you focus the staged (bottom/right) section.
+  expandFocusedStagingPanel: false
+
   # Sometimes the main window is split in two (e.g. when the selected file has
   # both staged and unstaged changes). This setting controls how the two sections
   # are split.
@@ -245,6 +252,19 @@ gui:
 
   # If true, show jump-to-window keybindings in window titles.
   showPanelJumps: true
+
+  # If true (default), show the Status panel in the side panel column. If false,
+  # it is hidden and its space is given to the other side panels.
+  showStatusPanel: true
+
+  # If true (default), show the Commits panel (and its Reflog tab) in the side
+  # panel column. If false, it is hidden and its space is given to the other side
+  # panels.
+  showCommitsPanel: true
+
+  # If true (default), show the Stash panel in the side panel column. If false, it
+  # is hidden and its space is given to the other side panels.
+  showStashPanel: true
 
   # Nerd fonts version to use.
   # One of: '2' | '3' | empty string (default)

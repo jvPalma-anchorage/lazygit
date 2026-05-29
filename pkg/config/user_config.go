@@ -102,6 +102,8 @@ type GuiConfig struct {
 	ExpandFocusedSidePanel bool `yaml:"expandFocusedSidePanel"`
 	// The weight of the expanded side panel, relative to the other panels. 2 means twice as tall as the other panels. Only relevant if `expandFocusedSidePanel` is true.
 	ExpandedSidePanelWeight int `yaml:"expandedSidePanelWeight"`
+	// If true, when the main window is split in two (e.g. the selected file has both staged and unstaged changes), give the focused section 80% of the space (height when stacked, width when side-by-side) and the other 20%, instead of an even 50/50 split. The split starts expanded on the unstaged (top/left) section and inverts when you focus the staged (bottom/right) section.
+	ExpandFocusedStagingPanel bool `yaml:"expandFocusedStagingPanel"`
 	// Sometimes the main window is split in two (e.g. when the selected file has both staged and unstaged changes). This setting controls how the two sections are split.
 	// Options are:
 	// - 'horizontal': split the window horizontally
@@ -152,6 +154,12 @@ type GuiConfig struct {
 	ShowBottomLine bool `yaml:"showBottomLine"`
 	// If true, show jump-to-window keybindings in window titles.
 	ShowPanelJumps bool `yaml:"showPanelJumps"`
+	// If true (default), show the Status panel in the side panel column. If false, it is hidden and its space is given to the other side panels.
+	ShowStatusPanel bool `yaml:"showStatusPanel"`
+	// If true (default), show the Commits panel (and its Reflog tab) in the side panel column. If false, it is hidden and its space is given to the other side panels.
+	ShowCommitsPanel bool `yaml:"showCommitsPanel"`
+	// If true (default), show the Stash panel in the side panel column. If false, it is hidden and its space is given to the other side panels.
+	ShowStashPanel bool `yaml:"showStashPanel"`
 	// Deprecated: use nerdFontsVersion instead
 	ShowIcons bool `yaml:"showIcons" jsonschema:"deprecated"`
 	// Nerd fonts version to use.
@@ -817,25 +825,26 @@ func GetDefaultConfig() *UserConfig {
 func GetDefaultConfigForPlatform(platform string) *UserConfig {
 	return &UserConfig{
 		Gui: GuiConfig{
-			ScrollHeight:             2,
-			ScrollPastBottom:         true,
-			ScrollOffMargin:          2,
-			ScrollOffBehavior:        "margin",
-			TabWidth:                 4,
-			MouseEvents:              true,
-			SkipAmendWarning:         false,
-			SkipDiscardChangeWarning: false,
-			SkipStashWarning:         false,
-			SidePanelWidth:           0.3333,
-			ExpandFocusedSidePanel:   false,
-			ExpandedSidePanelWeight:  2,
-			MainPanelSplitMode:       "flexible",
-			EnlargedSideViewLocation: "left",
-			WrapLinesInStagingView:   true,
-			UseHunkModeInStagingView: true,
-			Language:                 "auto",
-			TimeFormat:               "02 Jan 06",
-			ShortTimeFormat:          time.Kitchen,
+			ScrollHeight:              2,
+			ScrollPastBottom:          true,
+			ScrollOffMargin:           2,
+			ScrollOffBehavior:         "margin",
+			TabWidth:                  4,
+			MouseEvents:               true,
+			SkipAmendWarning:          false,
+			SkipDiscardChangeWarning:  false,
+			SkipStashWarning:          false,
+			SidePanelWidth:            0.3333,
+			ExpandFocusedSidePanel:    false,
+			ExpandedSidePanelWeight:   2,
+			ExpandFocusedStagingPanel: false,
+			MainPanelSplitMode:        "flexible",
+			EnlargedSideViewLocation:  "left",
+			WrapLinesInStagingView:    true,
+			UseHunkModeInStagingView:  true,
+			Language:                  "auto",
+			TimeFormat:                "02 Jan 06",
+			ShortTimeFormat:           time.Kitchen,
 			Theme: ThemeConfig{
 				ActiveBorderColor:               []string{"green", "bold"},
 				SearchingActiveBorderColor:      []string{"cyan", "bold"},
@@ -856,6 +865,9 @@ func GetDefaultConfigForPlatform(platform string) *UserConfig {
 			ShowCommandLog:                      true,
 			ShowBottomLine:                      true,
 			ShowPanelJumps:                      true,
+			ShowStatusPanel:                     true,
+			ShowCommitsPanel:                    true,
+			ShowStashPanel:                      true,
 			ShowFileTree:                        true,
 			ShowRootItemInFileTree:              true,
 			FileTreeSortOrder:                   "mixed",

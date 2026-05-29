@@ -10,6 +10,7 @@ import (
 	"github.com/jesseduffield/lazygit/pkg/config"
 	"github.com/jesseduffield/lazygit/pkg/gui/types"
 	"github.com/jesseduffield/lazygit/pkg/utils"
+	"github.com/samber/lo"
 	"golang.org/x/exp/slices"
 )
 
@@ -223,14 +224,25 @@ func mainSectionChildren(args WindowArrangementArgs) []*boxlayout.Box {
 		}
 	}
 
+	mainWeight, secondaryWeight := 1, 1
+	if args.UserConfig.Gui.ExpandFocusedStagingPanel {
+		// Give the focused section 80% of the height (weight 4 vs 1). The split
+		// starts expanded on the top (main / unstaged) section and only inverts
+		// once the bottom (secondary / staged) section is focused.
+		mainWeight, secondaryWeight = 4, 1
+		if args.CurrentWindow == "secondary" {
+			mainWeight, secondaryWeight = 1, 4
+		}
+	}
+
 	return []*boxlayout.Box{
 		{
 			Window: "main",
-			Weight: 1,
+			Weight: mainWeight,
 		},
 		{
 			Window: "secondary",
-			Weight: 1,
+			Weight: secondaryWeight,
 		},
 	}
 }
@@ -436,13 +448,9 @@ func sidePanelChildren(args WindowArrangementArgs) func(width int, height int) [
 				}
 			}
 
-			return []*boxlayout.Box{
-				fullHeightBox("status"),
-				fullHeightBox("files"),
-				fullHeightBox("branches"),
-				fullHeightBox("commits"),
-				fullHeightBox("stash"),
-			}
+			return lo.Map(SideWindowNames(args.UserConfig), func(window string, _ int) *boxlayout.Box {
+				return fullHeightBox(window)
+			})
 		} else if height >= 28 {
 			accordionMode := args.UserConfig.Gui.ExpandFocusedSidePanel
 			accordionBox := func(defaultBox *boxlayout.Box) *boxlayout.Box {
@@ -456,16 +464,16 @@ func sidePanelChildren(args WindowArrangementArgs) func(width int, height int) [
 				return defaultBox
 			}
 
-			return []*boxlayout.Box{
-				{
-					Window: "status",
-					Size:   3,
-				},
-				accordionBox(&boxlayout.Box{Window: "files", Weight: 1}),
-				accordionBox(&boxlayout.Box{Window: "branches", Weight: 1}),
-				accordionBox(&boxlayout.Box{Window: "commits", Weight: 1}),
-				accordionBox(getDefaultStashWindowBox(args)),
-			}
+			return lo.Map(SideWindowNames(args.UserConfig), func(window string, _ int) *boxlayout.Box {
+				switch window {
+				case "status":
+					return &boxlayout.Box{Window: "status", Size: 3}
+				case "stash":
+					return accordionBox(getDefaultStashWindowBox(args))
+				default: // files, branches, commits
+					return accordionBox(&boxlayout.Box{Window: window, Weight: 1})
+				}
+			})
 		}
 
 		squashedHeight := 1
@@ -487,12 +495,8 @@ func sidePanelChildren(args WindowArrangementArgs) func(width int, height int) [
 			}
 		}
 
-		return []*boxlayout.Box{
-			squashedSidePanelBox("status"),
-			squashedSidePanelBox("files"),
-			squashedSidePanelBox("branches"),
-			squashedSidePanelBox("commits"),
-			squashedSidePanelBox("stash"),
-		}
+		return lo.Map(SideWindowNames(args.UserConfig), func(window string, _ int) *boxlayout.Box {
+			return squashedSidePanelBox(window)
+		})
 	}
 }

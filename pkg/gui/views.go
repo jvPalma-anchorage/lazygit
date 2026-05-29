@@ -7,6 +7,7 @@ import (
 	"github.com/jesseduffield/lazygit/pkg/config"
 	"github.com/jesseduffield/lazygit/pkg/gocui"
 	"github.com/jesseduffield/lazygit/pkg/gui/context"
+	"github.com/jesseduffield/lazygit/pkg/gui/controllers/helpers"
 	"github.com/jesseduffield/lazygit/pkg/theme"
 	"github.com/samber/lo"
 	"golang.org/x/exp/slices"
@@ -222,20 +223,31 @@ func (gui *Gui) configureViewProperties() {
 			return keyToTitlePrefix(binding)
 		})
 
-		gui.Views.Status.TitlePrefix = jumpLabels[0]
+		windowViews := []struct {
+			window string
+			views  []*gocui.View
+		}{
+			{window: "status", views: []*gocui.View{gui.Views.Status}},
+			{window: "files", views: []*gocui.View{gui.Views.Files, gui.Views.Worktrees, gui.Views.Submodules}},
+			{window: "branches", views: []*gocui.View{gui.Views.Branches, gui.Views.Remotes, gui.Views.Tags}},
+			{window: "commits", views: []*gocui.View{gui.Views.Commits, gui.Views.ReflogCommits}},
+			{window: "stash", views: []*gocui.View{gui.Views.Stash}},
+		}
 
-		gui.Views.Files.TitlePrefix = jumpLabels[1]
-		gui.Views.Worktrees.TitlePrefix = jumpLabels[1]
-		gui.Views.Submodules.TitlePrefix = jumpLabels[1]
+		windowIndexes := map[string]int{}
+		for i, window := range helpers.SideWindowNames(gui.c.UserConfig()) {
+			windowIndexes[window] = i
+		}
 
-		gui.Views.Branches.TitlePrefix = jumpLabels[2]
-		gui.Views.Remotes.TitlePrefix = jumpLabels[2]
-		gui.Views.Tags.TitlePrefix = jumpLabels[2]
-
-		gui.Views.Commits.TitlePrefix = jumpLabels[3]
-		gui.Views.ReflogCommits.TitlePrefix = jumpLabels[3]
-
-		gui.Views.Stash.TitlePrefix = jumpLabels[4]
+		for _, entry := range windowViews {
+			label := ""
+			if i, ok := windowIndexes[entry.window]; ok && i < len(jumpLabels) {
+				label = jumpLabels[i]
+			}
+			for _, view := range entry.views {
+				view.TitlePrefix = label
+			}
+		}
 
 		gui.Views.Main.TitlePrefix = keyToTitlePrefix(gui.c.UserConfig().Keybinding.Universal.FocusMainView)
 	} else {

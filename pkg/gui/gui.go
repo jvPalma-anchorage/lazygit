@@ -364,6 +364,8 @@ func (gui *Gui) onNewRepo(startArgs appTypes.StartArgs, contextKey types.Context
 				if err := gui.checkForChangedConfigsThatDontAutoReload(oldConfig, gui.Config.GetUserConfig()); err != nil {
 					return err
 				}
+
+				gui.redirectFocusFromHiddenSideWindow()
 			}
 
 			gui.c.Log.Info("Receiving focus - refreshing")
@@ -628,7 +630,11 @@ func (gui *Gui) resetState(startArgs appTypes.StartArgs) types.Context {
 
 	gui.RepoStateMap[Repo(worktreePath)] = gui.State
 
-	return initialContext(contextTree, startArgs)
+	ctx := initialContext(contextTree, startArgs)
+	if !gui.isSideWindowVisible(ctx.GetWindowName()) {
+		ctx = contextTree.Files
+	}
+	return ctx
 }
 
 func (gui *Gui) loadCachedPullRequests() []*models.GithubPullRequest {

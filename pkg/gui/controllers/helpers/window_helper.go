@@ -3,6 +3,7 @@ package helpers
 import (
 	"fmt"
 
+	"github.com/jesseduffield/lazygit/pkg/config"
 	"github.com/jesseduffield/lazygit/pkg/gocui"
 	"github.com/jesseduffield/lazygit/pkg/gui/types"
 	"github.com/jesseduffield/lazygit/pkg/utils"
@@ -134,6 +135,28 @@ func (self *WindowHelper) WindowForView(viewName string) string {
 	return context.GetWindowName()
 }
 
+// SideWindowNames returns the currently visible side-panel windows, top to
+// bottom, in the order they appear on screen. The status, commits, and stash
+// windows are omitted when the user has hidden them via config; files and
+// branches are always present. It is a free function rather than a method so it
+// can be called before the helpers are wired up, notably from
+// configureViewProperties on the first config load, which runs before
+// resetHelpersAndControllers.
+func SideWindowNames(userConfig *config.UserConfig) []string {
+	windows := make([]string, 0, 5)
+	if userConfig.Gui.ShowStatusPanel {
+		windows = append(windows, "status")
+	}
+	windows = append(windows, "files", "branches")
+	if userConfig.Gui.ShowCommitsPanel {
+		windows = append(windows, "commits")
+	}
+	if userConfig.Gui.ShowStashPanel {
+		windows = append(windows, "stash")
+	}
+	return windows
+}
+
 func (self *WindowHelper) SideWindows() []string {
-	return []string{"status", "files", "branches", "commits", "stash"}
+	return SideWindowNames(self.c.UserConfig())
 }
