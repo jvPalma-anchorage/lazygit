@@ -244,6 +244,14 @@ func getLazygitCommand(
 	// Set a race detector log path only to avoid spamming the terminal with the
 	// logs. We are not showing this anywhere yet.
 	cmdObj.AddEnvVars(fmt.Sprintf("GORACE=log_path=%s", raceDetectorLogsPath()))
+	// Default the gh-availability gate off so the branches window has a stable,
+	// host-independent tab layout in tests (the test driver assumes a fixed tab
+	// set). Tests that exercise the Pull Requests tab opt in by setting
+	// GH_AVAILABLE_OVERRIDE themselves via ExtraEnvVars.
+	if _, ok := test.ExtraEnvVars()[GH_AVAILABLE_OVERRIDE_ENV_VAR]; !ok {
+		cmdObj.AddEnvVars(fmt.Sprintf("%s=false", GH_AVAILABLE_OVERRIDE_ENV_VAR))
+	}
+
 	if test.ExtraEnvVars() != nil {
 		for key, value := range test.ExtraEnvVars() {
 			cmdObj.AddEnvVars(fmt.Sprintf("%s=%s", key, value))

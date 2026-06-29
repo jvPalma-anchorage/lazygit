@@ -344,6 +344,7 @@ type TranslationSet struct {
 	MenuTitle                             string
 	CommitMenuTitle                       string
 	RemotesTitle                          string
+	PullRequestsTitle                     string
 	RemoteBranchesTitle                   string
 	PatchBuildingTitle                    string
 	InformationTitle                      string
@@ -1463,6 +1464,7 @@ func EnglishTranslationSet() *TranslationSet {
 		MenuTitle:                            "Menu",
 		CommitMenuTitle:                      "Commit Menu",
 		RemotesTitle:                         "Remotes",
+		PullRequestsTitle:                    "Pull Requests",
 		RemoteBranchesTitle:                  "Remote branches",
 		PatchBuildingTitle:                   "Main panel (patch building)",
 		InformationTitle:                     "Information",

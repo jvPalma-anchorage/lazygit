@@ -57,6 +57,12 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` <enter> `` | 확인 |  |
 | `` <esc> `` | 닫기/취소 |  |
 
+## Pull Requests
+
+| Key | Action | Info |
+|-----|--------|-------------|
+| `` / `` | Filter the current view by text |  |
+
 ## Reflog
 
 | Key | Action | Info |

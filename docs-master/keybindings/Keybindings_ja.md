@@ -57,6 +57,12 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` <enter> `` | 確認 |  |
 | `` <esc> `` | 閉じる/キャンセル |  |
 
+## Pull Requests
+
+| Key | Action | Info |
+|-----|--------|-------------|
+| `` / `` | 現在のビューをテキストでフィルタリング |  |
+
 ## コミット
 
 | Key | Action | Info |

@@ -57,6 +57,12 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` <enter> `` | Подтвердить |  |
 | `` <esc> `` | Закрыть/отменить |  |
 
+## Pull Requests
+
+| Key | Action | Info |
+|-----|--------|-------------|
+| `` / `` | Filter the current view by text |  |
+
 ## Worktrees
 
 | Key | Action | Info |

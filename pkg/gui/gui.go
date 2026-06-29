@@ -66,6 +66,11 @@ type Gui struct {
 	git        *commands.GitCommand
 	os         *oscommands.OSCommand
 
+	// whether the `gh` CLI was found on PATH at startup. PATH doesn't change
+	// during a session, so this is resolved once and read on hot paths (e.g.
+	// viewTabMap) instead of calling exec.LookPath repeatedly.
+	ghAvailable bool
+
 	// this is the state of the GUI for the current repo
 	State *GuiRepoState
 
@@ -742,6 +747,7 @@ func NewGui(
 		viewBufferManagerMap: map[string]*tasks.ViewBufferManager{},
 		viewPtmxMap:          map[string]*os.File{},
 		showRecentRepos:      showRecentRepos,
+		ghAvailable:          detectGhAvailable(),
 		RepoPathStack:        &utils.StringStack{},
 		RepoStateMap:         map[Repo]*GuiRepoState{},
 		GuiLog:               []string{},
@@ -840,21 +846,34 @@ func (gui *Gui) initGocui(headless bool, test integrationTypes.IntegrationTest) 
 }
 
 func (gui *Gui) viewTabMap() map[string][]context.TabView {
-	result := map[string][]context.TabView{
-		"branches": {
-			{
-				Tab:      gui.c.Tr.LocalBranchesTitle,
-				ViewName: "localBranches",
-			},
-			{
-				Tab:      gui.c.Tr.RemotesTitle,
-				ViewName: "remotes",
-			},
-			{
-				Tab:      gui.c.Tr.TagsTitle,
-				ViewName: "tags",
-			},
+	branchesTabs := []context.TabView{
+		{
+			Tab:      gui.c.Tr.LocalBranchesTitle,
+			ViewName: "localBranches",
 		},
+	}
+	// The Pull Requests tab sits second (between Local Branches and Remotes),
+	// but only when the `gh` CLI was found at startup. Reading the cached bool
+	// keeps this hot path free of exec.LookPath calls.
+	if gui.ghAvailable {
+		branchesTabs = append(branchesTabs, context.TabView{
+			Tab:      gui.c.Tr.PullRequestsTitle,
+			ViewName: "pullRequests",
+		})
+	}
+	branchesTabs = append(branchesTabs,
+		context.TabView{
+			Tab:      gui.c.Tr.RemotesTitle,
+			ViewName: "remotes",
+		},
+		context.TabView{
+			Tab:      gui.c.Tr.TagsTitle,
+			ViewName: "tags",
+		},
+	)
+
+	result := map[string][]context.TabView{
+		"branches": branchesTabs,
 		"commits": {
 			{
 				Tab:      gui.c.Tr.CommitsTitle,

@@ -11,6 +11,10 @@ const (
 	SANDBOX_ENV_VAR           = "SANDBOX"
 	TEST_NAME_ENV_VAR         = "TEST_NAME"
 	WAIT_FOR_DEBUGGER_ENV_VAR = "WAIT_FOR_DEBUGGER"
+	// Forces the `gh`-CLI availability gate on ("true") or off ("false"),
+	// bypassing PATH detection. Used by integration tests to drive the Pull
+	// Requests tab deterministically regardless of whether the host has `gh`.
+	GH_AVAILABLE_OVERRIDE_ENV_VAR = "GH_AVAILABLE_OVERRIDE"
 
 	// These values will be passed to both lazygit and shell commands
 	GIT_CONFIG_GLOBAL_ENV_VAR = "GIT_CONFIG_GLOBAL"

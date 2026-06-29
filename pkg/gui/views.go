@@ -35,6 +35,7 @@ func (gui *Gui) orderedViewNameMappings() []viewNameMapping {
 		{viewPtr: &gui.Views.Files, name: "files"},
 		{viewPtr: &gui.Views.Tags, name: "tags"},
 		{viewPtr: &gui.Views.Remotes, name: "remotes"},
+		{viewPtr: &gui.Views.PullRequests, name: "pullRequests"},
 		{viewPtr: &gui.Views.Branches, name: "localBranches"},
 		{viewPtr: &gui.Views.RemoteBranches, name: "remoteBranches"},
 		{viewPtr: &gui.Views.ReflogCommits, name: "reflogCommits"},
@@ -186,6 +187,7 @@ func (gui *Gui) configureViewProperties() {
 	gui.Views.CommitFiles.Title = gui.c.Tr.CommitFiles
 	gui.Views.Branches.Title = gui.c.Tr.BranchesTitle
 	gui.Views.Remotes.Title = gui.c.Tr.RemotesTitle
+	gui.Views.PullRequests.Title = gui.c.Tr.PullRequestsTitle
 	gui.Views.Worktrees.Title = gui.c.Tr.WorktreesTitle
 	gui.Views.Tags.Title = gui.c.Tr.TagsTitle
 	gui.Views.Files.Title = gui.c.Tr.FilesTitle
@@ -229,7 +231,7 @@ func (gui *Gui) configureViewProperties() {
 		}{
 			{window: "status", views: []*gocui.View{gui.Views.Status}},
 			{window: "files", views: []*gocui.View{gui.Views.Files, gui.Views.Worktrees, gui.Views.Submodules}},
-			{window: "branches", views: []*gocui.View{gui.Views.Branches, gui.Views.Remotes, gui.Views.Tags}},
+			{window: "branches", views: []*gocui.View{gui.Views.Branches, gui.Views.Remotes, gui.Views.PullRequests, gui.Views.Tags}},
 			{window: "commits", views: []*gocui.View{gui.Views.Commits, gui.Views.ReflogCommits}},
 			{window: "stash", views: []*gocui.View{gui.Views.Stash}},
 		}
@@ -259,6 +261,7 @@ func (gui *Gui) configureViewProperties() {
 
 		gui.Views.Branches.TitlePrefix = ""
 		gui.Views.Remotes.TitlePrefix = ""
+		gui.Views.PullRequests.TitlePrefix = ""
 		gui.Views.Tags.TitlePrefix = ""
 
 		gui.Views.Commits.TitlePrefix = ""

@@ -298,6 +298,12 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` <esc> `` | Sair do construtor de patch personalizado |  |
 | `` / `` | Pesquisar na visualização atual por texto |  |
 
+## Pull Requests
+
+| Key | Action | Info |
+|-----|--------|-------------|
+| `` / `` | Filtrar a visualização atual por texto |  |
+
 ## Reflog
 
 | Key | Action | Info |

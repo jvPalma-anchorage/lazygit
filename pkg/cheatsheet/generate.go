@@ -109,6 +109,7 @@ func localisedTitle(tr *i18n.TranslationSet, str string) string {
 		"subCommits":        tr.SubCommitsTitle,
 		"remoteBranches":    tr.RemoteBranchesTitle,
 		"remotes":           tr.RemotesTitle,
+		"pullRequests":      tr.PullRequestsTitle,
 		"reflogCommits":     tr.ReflogCommitsTitle,
 		"tags":              tr.TagsTitle,
 		"commitFiles":       tr.CommitFilesTitle,

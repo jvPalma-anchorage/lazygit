@@ -270,6 +270,12 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` <esc> `` | Close/Cancel |  |
 | `` / `` | Filter the current view by text |  |
 
+## Pull Requests
+
+| Key | Action | Info |
+|-----|--------|-------------|
+| `` / `` | Filter the current view by text |  |
+
 ## Reflog
 
 | Key | Action | Info |
