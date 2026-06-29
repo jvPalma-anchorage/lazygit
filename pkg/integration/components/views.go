@@ -82,6 +82,14 @@ func (self *Views) PullRequests() *ViewDriver {
 	return self.regularView("pullRequests")
 }
 
+func (self *Views) PrReview() *ViewDriver {
+	return self.regularView("prReview")
+}
+
+func (self *Views) PrReviewDiff() *ViewDriver {
+	return self.regularView("prReviewDiff")
+}
+
 func (self *Views) RemoteBranches() *ViewDriver {
 	return self.regularView("remoteBranches")
 }

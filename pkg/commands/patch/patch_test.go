@@ -627,6 +627,19 @@ func TestLineNumberOfLine(t *testing.T) {
 	}
 }
 
+func TestOldLineNumberOfLine(t *testing.T) {
+	// simpleDiff has 4 header lines, then the hunk header at idx 4, then:
+	// idx5 " apple" (ctx, old 1), idx6 "-orange" (del, old 2),
+	// idx7 "+grape" (add), idx8/9/10 context (old 3/4/5).
+	indexes := []int{4, 5, 6, 7, 8, 9, 10, 1000}
+	expecteds := []int{1, 1, 2, 3, 3, 4, 5, 5}
+
+	patch := Parse(simpleDiff)
+	for i, idx := range indexes {
+		assert.Equal(t, expecteds[i], patch.OldLineNumberOfLine(idx))
+	}
+}
+
 func TestGetNextStageableLineIndex(t *testing.T) {
 	type scenario struct {
 		testName  string

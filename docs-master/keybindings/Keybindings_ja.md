@@ -57,6 +57,20 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` <enter> `` | 確認 |  |
 | `` <esc> `` | 閉じる/キャンセル |  |
 
+## PR Review
+
+| Key | Action | Info |
+|-----|--------|-------------|
+| `` <enter> `` | View diff |  |
+| `` <space> `` | Toggle reviewed |  |
+| `` t `` | Toggle unified / side-by-side diff |  |
+| `` d `` | View PR description |  |
+| `` 0 `` | メインビューにフォーカス |  |
+| `` / `` | 現在のビューをテキストでフィルタリング |  |
+| `` <space> `` | 範囲選択を下に |  |
+| `` c `` | Add review comment |  |
+| `` <esc> `` | ファイルパネルに戻る |  |
+
 ## Pull Requests
 
 | Key | Action | Info |

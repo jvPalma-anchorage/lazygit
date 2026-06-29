@@ -15,6 +15,11 @@ const (
 	// bypassing PATH detection. Used by integration tests to drive the Pull
 	// Requests tab deterministically regardless of whether the host has `gh`.
 	GH_AVAILABLE_OVERRIDE_ENV_VAR = "GH_AVAILABLE_OVERRIDE"
+	// Forces the `glow`-CLI availability gate on ("true") or off ("false"),
+	// bypassing PATH detection. Used by integration tests to drive PR-review
+	// markdown rendering deterministically regardless of whether the host has
+	// `glow`.
+	GLOW_AVAILABLE_OVERRIDE_ENV_VAR = "GLOW_AVAILABLE_OVERRIDE"
 
 	// These values will be passed to both lazygit and shell commands
 	GIT_CONFIG_GLOBAL_ENV_VAR = "GIT_CONFIG_GLOBAL"

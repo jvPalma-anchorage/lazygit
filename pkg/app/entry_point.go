@@ -10,8 +10,10 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"runtime/debug"
+	"strconv"
 	"strings"
 
 	"github.com/integrii/flaggy"
@@ -30,6 +32,10 @@ type cliArgs struct {
 	RepoPath           string
 	FilterPath         string
 	GitArg             string
+	PrNumberArg        string
+	ReviewOwner        string
+	ReviewRepo         string
+	ReviewPRNumber     int
 	UseConfigDir       string
 	WorkTree           string
 	GitDir             string
@@ -43,6 +49,12 @@ type cliArgs struct {
 	PrintConfigDir     bool
 }
 
+// reviewOwnerRepoRegexp matches an OWNER/REPO positional: exactly one slash, no whitespace.
+var reviewOwnerRepoRegexp = regexp.MustCompile(`^[^/\s]+/[^/\s]+$`)
+
+// reviewPRNumberRegexp matches an all-digits PR number positional.
+var reviewPRNumberRegexp = regexp.MustCompile(`^[0-9]+$`)
+
 type BuildInfo struct {
 	Commit      string
 	Date        string
@@ -53,6 +65,33 @@ type BuildInfo struct {
 func Start(buildInfo *BuildInfo, integrationTest integrationTypes.IntegrationTest) {
 	cliArgs := parseCliArgsAndEnvVars()
 	mergeBuildInfo(buildInfo)
+
+	// Detect PR review mode: `lazygit OWNER/REPO PR_NUMBER`. We do this before the
+	// RepoPath handling and before parseGitArg so that `OWNER/REPO` is never passed
+	// to the git-arg validation (which would log.Fatal on it).
+	if reviewOwnerRepoRegexp.MatchString(cliArgs.GitArg) && reviewPRNumberRegexp.MatchString(cliArgs.PrNumberArg) {
+		prNumber, err := strconv.Atoi(cliArgs.PrNumberArg)
+		if err != nil {
+			log.Fatalf("Invalid PR number '%s' for PR review mode. Expected a positive integer, e.g. 'lazygit owner/repo 123'.", cliArgs.PrNumberArg)
+		}
+
+		ownerRepo := strings.TrimSuffix(cliArgs.GitArg, ".git")
+		ownerRepoParts := strings.SplitN(ownerRepo, "/", 2)
+		cliArgs.ReviewOwner = ownerRepoParts[0]
+		cliArgs.ReviewRepo = ownerRepoParts[1]
+		cliArgs.ReviewPRNumber = prNumber
+
+		// Clear the git-arg so parseGitArg never receives owner/repo.
+		cliArgs.GitArg = ""
+	}
+
+	// A second positional is only meaningful in PR review mode (`OWNER/REPO PR_NUMBER`).
+	// If one was provided but we didn't enter review mode, the invocation is invalid;
+	// reject it rather than silently ignoring the extra argument (preserving the prior
+	// behaviour where a stray second positional was not accepted).
+	if cliArgs.PrNumberArg != "" && cliArgs.ReviewOwner == "" {
+		log.Fatalf("Unexpected second argument '%s'. A PR number is only valid in PR review mode, e.g. 'lazygit owner/repo %s'.", cliArgs.PrNumberArg, cliArgs.PrNumberArg)
+	}
 
 	if cliArgs.RepoPath != "" {
 		if cliArgs.WorkTree != "" || cliArgs.GitDir != "" {
@@ -174,7 +213,16 @@ func Start(buildInfo *BuildInfo, integrationTest integrationTypes.IntegrationTes
 
 	parsedGitArg := parseGitArg(cliArgs.GitArg)
 
-	Run(appConfig, common, appTypes.NewStartArgs(cliArgs.FilterPath, parsedGitArg, cliArgs.ScreenMode, integrationTest))
+	var reviewTarget *appTypes.ReviewTarget
+	if cliArgs.ReviewOwner != "" {
+		reviewTarget = &appTypes.ReviewTarget{
+			Owner:    cliArgs.ReviewOwner,
+			Repo:     cliArgs.ReviewRepo,
+			PRNumber: cliArgs.ReviewPRNumber,
+		}
+	}
+
+	Run(appConfig, common, appTypes.NewStartArgs(cliArgs.FilterPath, parsedGitArg, cliArgs.ScreenMode, reviewTarget, integrationTest))
 }
 
 func parseCliArgsAndEnvVars() *cliArgs {
@@ -188,6 +236,9 @@ func parseCliArgsAndEnvVars() *cliArgs {
 
 	gitArg := ""
 	flaggy.AddPositionalValue(&gitArg, "git-arg", 1, false, "Panel to focus upon opening lazygit. Accepted values (based on git terminology): status, branch, log, stash. Ignored if --filter arg is passed.")
+
+	prNumberArg := ""
+	flaggy.AddPositionalValue(&prNumberArg, "pr-number", 2, false, "Pull request number to review. When the first positional is OWNER/REPO and this is a number, lazygit boots into PR review mode.")
 
 	printVersionInfo := false
 	flaggy.Bool(&printVersionInfo, "v", "version", "Print the current version")
@@ -232,6 +283,7 @@ func parseCliArgsAndEnvVars() *cliArgs {
 		RepoPath:           repoPath,
 		FilterPath:         filterPath,
 		GitArg:             gitArg,
+		PrNumberArg:        prNumberArg,
 		PrintVersionInfo:   printVersionInfo,
 		Debug:              debug,
 		TailLogs:           tailLogs,

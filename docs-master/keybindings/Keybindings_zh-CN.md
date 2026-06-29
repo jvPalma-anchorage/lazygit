@@ -50,6 +50,20 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` ] `` | 下一个标签 |  |
 | `` [ `` | 上一个标签 |  |
 
+## PR Review
+
+| Key | Action | Info |
+|-----|--------|-------------|
+| `` <enter> `` | View diff |  |
+| `` <space> `` | Toggle reviewed |  |
+| `` t `` | Toggle unified / side-by-side diff |  |
+| `` d `` | View PR description |  |
+| `` 0 `` | 聚焦主视图 |  |
+| `` / `` | 通过文本过滤当前视图 |  |
+| `` <space> `` | 向下扩展选择范围 |  |
+| `` c `` | Add review comment |  |
+| `` <esc> `` | 返回文件面板 |  |
+
 ## Pull Requests
 
 | Key | Action | Info |

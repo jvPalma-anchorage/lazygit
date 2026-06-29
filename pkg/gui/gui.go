@@ -71,6 +71,16 @@ type Gui struct {
 	// viewTabMap) instead of calling exec.LookPath repeatedly.
 	ghAvailable bool
 
+	// whether the `glow` markdown renderer was found on PATH at startup.
+	// Resolved once because spawning glow costs tens of milliseconds; read by
+	// renderMarkdown to decide whether to render PR-review markdown bodies.
+	glowAvailable bool
+
+	// memoizes glow-rendered markdown keyed by (body, width) so glow is only
+	// spawned on selection / width change rather than on every redraw.
+	glowCache      map[glowCacheKey]string
+	glowCacheMutex sync.Mutex
+
 	// this is the state of the GUI for the current repo
 	State *GuiRepoState
 
@@ -582,7 +592,15 @@ func (gui *Gui) resetState(startArgs appTypes.StartArgs) types.Context {
 
 	worktreePath := gui.git.RepoPaths.WorktreePath()
 
-	if state := gui.RepoStateMap[Repo(worktreePath)]; state != nil {
+	// In PR review mode we scope the repo state by the target PR so that a review
+	// session never clobbers (or reuses) the normal repo state cached for the same
+	// worktree path.
+	stateKey := Repo(worktreePath)
+	if startArgs.ReviewTarget != nil {
+		stateKey = Repo(fmt.Sprintf("%s\x00review\x00%s/%s#%d", worktreePath, startArgs.ReviewTarget.Owner, startArgs.ReviewTarget.Repo, startArgs.ReviewTarget.PRNumber))
+	}
+
+	if state := gui.RepoStateMap[stateKey]; state != nil {
 		gui.State = state
 		gui.State.ViewsSetup = false
 
@@ -633,7 +651,17 @@ func (gui *Gui) resetState(startArgs appTypes.StartArgs) types.Context {
 		SearchState:       types.NewSearchState(),
 	}
 
-	gui.RepoStateMap[Repo(worktreePath)] = gui.State
+	gui.RepoStateMap[stateKey] = gui.State
+
+	if startArgs.ReviewTarget != nil {
+		contextTree.PrReview.SetTarget(
+			startArgs.ReviewTarget.Owner,
+			startArgs.ReviewTarget.Repo,
+			startArgs.ReviewTarget.PRNumber,
+		)
+		contextTree.PrReview.SetMarkdownRenderer(gui.renderMarkdown)
+		return contextTree.PrReview
+	}
 
 	ctx := initialContext(contextTree, startArgs)
 	if !gui.isSideWindowVisible(ctx.GetWindowName()) {
@@ -748,6 +776,7 @@ func NewGui(
 		viewPtmxMap:          map[string]*os.File{},
 		showRecentRepos:      showRecentRepos,
 		ghAvailable:          detectGhAvailable(),
+		glowAvailable:        detectGlowAvailable(),
 		RepoPathStack:        &utils.StringStack{},
 		RepoStateMap:         map[Repo]*GuiRepoState{},
 		GuiLog:               []string{},

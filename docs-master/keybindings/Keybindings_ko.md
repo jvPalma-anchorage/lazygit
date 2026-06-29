@@ -57,6 +57,20 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` <enter> `` | 확인 |  |
 | `` <esc> `` | 닫기/취소 |  |
 
+## PR Review
+
+| Key | Action | Info |
+|-----|--------|-------------|
+| `` <enter> `` | View diff |  |
+| `` <space> `` | Toggle reviewed |  |
+| `` t `` | Toggle unified / side-by-side diff |  |
+| `` d `` | View PR description |  |
+| `` 0 `` | Focus main view |  |
+| `` / `` | Filter the current view by text |  |
+| `` <space> `` | Range select down |  |
+| `` c `` | Add review comment |  |
+| `` <esc> `` | 파일 목록으로 돌아가기 |  |
+
 ## Pull Requests
 
 | Key | Action | Info |

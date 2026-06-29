@@ -15,6 +15,8 @@ const (
 	LOCAL_BRANCHES_CONTEXT_KEY           types.ContextKey = "localBranches"
 	REMOTES_CONTEXT_KEY                  types.ContextKey = "remotes"
 	PULL_REQUESTS_CONTEXT_KEY            types.ContextKey = "pullRequests"
+	PR_REVIEW_CONTEXT_KEY                types.ContextKey = "prReview"
+	PR_REVIEW_DIFF_CONTEXT_KEY           types.ContextKey = "prReviewDiff"
 	WORKTREES_CONTEXT_KEY                types.ContextKey = "worktrees"
 	REMOTE_BRANCHES_CONTEXT_KEY          types.ContextKey = "remoteBranches"
 	TAGS_CONTEXT_KEY                     types.ContextKey = "tags"
@@ -58,6 +60,8 @@ var AllContextKeys = []types.ContextKey{
 	LOCAL_BRANCHES_CONTEXT_KEY,
 	REMOTES_CONTEXT_KEY,
 	PULL_REQUESTS_CONTEXT_KEY,
+	PR_REVIEW_CONTEXT_KEY,
+	PR_REVIEW_DIFF_CONTEXT_KEY,
 	WORKTREES_CONTEXT_KEY,
 	REMOTE_BRANCHES_CONTEXT_KEY,
 	TAGS_CONTEXT_KEY,
@@ -96,6 +100,8 @@ type ContextTree struct {
 	CommitFiles                 *CommitFilesContext
 	Remotes                     *RemotesContext
 	PullRequests                *PullRequestsContext
+	PrReview                    *PrReviewContext
+	PrReviewDiff                *PrReviewDiffContext
 	Worktrees                   *WorktreesContext
 	Submodules                  *SubmodulesContext
 	RemoteBranches              *RemoteBranchesContext
@@ -135,6 +141,7 @@ func (self *ContextTree) Flatten() []types.Context {
 		self.Snake,
 		self.Submodules,
 		self.Worktrees,
+		self.PrReview,
 		self.Files,
 		self.SubCommits,
 		self.Remotes,
@@ -153,6 +160,7 @@ func (self *ContextTree) Flatten() []types.Context {
 		self.CommitDescription,
 
 		self.MergeConflicts,
+		self.PrReviewDiff,
 		self.StagingSecondary,
 		self.Staging,
 		self.CustomPatchBuilderSecondary,

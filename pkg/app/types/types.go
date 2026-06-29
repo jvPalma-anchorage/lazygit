@@ -4,6 +4,13 @@ import (
 	integrationTypes "github.com/jesseduffield/lazygit/pkg/integration/types"
 )
 
+// ReviewTarget identifies a pull request to boot directly into PR review mode for.
+type ReviewTarget struct {
+	Owner    string
+	Repo     string
+	PRNumber int
+}
+
 // StartArgs is the struct that represents some things we want to do on program start
 type StartArgs struct {
 	// GitArg determines what context we open in
@@ -14,6 +21,8 @@ type StartArgs struct {
 	FilterPath string
 	// ScreenMode determines the initial Screen Mode (normal, half or full) to use
 	ScreenMode string
+	// ReviewTarget, when set, boots directly into PR review mode for the given pull request.
+	ReviewTarget *ReviewTarget
 }
 
 type GitArg string
@@ -26,11 +35,12 @@ const (
 	GitArgStash  GitArg = "stash"
 )
 
-func NewStartArgs(filterPath string, gitArg GitArg, screenMode string, test integrationTypes.IntegrationTest) StartArgs {
+func NewStartArgs(filterPath string, gitArg GitArg, screenMode string, reviewTarget *ReviewTarget, test integrationTypes.IntegrationTest) StartArgs {
 	return StartArgs{
 		FilterPath:      filterPath,
 		GitArg:          gitArg,
 		ScreenMode:      screenMode,
+		ReviewTarget:    reviewTarget,
 		IntegrationTest: test,
 	}
 }

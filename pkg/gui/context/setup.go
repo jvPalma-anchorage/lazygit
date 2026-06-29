@@ -30,6 +30,8 @@ func NewContextTree(c *ContextCommon) *ContextTree {
 		Menu:            NewMenuContext(c),
 		Remotes:         NewRemotesContext(c),
 		PullRequests:    NewPullRequestsContext(c),
+		PrReview:        NewPrReviewContext(c),
+		PrReviewDiff:    NewPrReviewDiffContext(c),
 		Worktrees:       NewWorktreesContext(c),
 		RemoteBranches:  NewRemoteBranchesContext(c),
 		LocalCommits:    NewLocalCommitsContext(c),

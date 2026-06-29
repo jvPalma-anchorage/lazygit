@@ -32,6 +32,7 @@ func (gui *Gui) orderedViewNameMappings() []viewNameMapping {
 		{viewPtr: &gui.Views.Snake, name: "snake"},
 		{viewPtr: &gui.Views.Submodules, name: "submodules"},
 		{viewPtr: &gui.Views.Worktrees, name: "worktrees"},
+		{viewPtr: &gui.Views.PrReview, name: "prReview"},
 		{viewPtr: &gui.Views.Files, name: "files"},
 		{viewPtr: &gui.Views.Tags, name: "tags"},
 		{viewPtr: &gui.Views.Remotes, name: "remotes"},
@@ -49,6 +50,7 @@ func (gui *Gui) orderedViewNameMappings() []viewNameMapping {
 		{viewPtr: &gui.Views.PatchBuilding, name: "patchBuilding"},
 		{viewPtr: &gui.Views.PatchBuildingSecondary, name: "patchBuildingSecondary"},
 		{viewPtr: &gui.Views.MergeConflicts, name: "mergeConflicts"},
+		{viewPtr: &gui.Views.PrReviewDiff, name: "prReviewDiff"},
 		{viewPtr: &gui.Views.Secondary, name: "secondary"},
 		{viewPtr: &gui.Views.Main, name: "main"},
 
@@ -103,7 +105,7 @@ func (gui *Gui) createAllViews() error {
 	gui.Views.Search.Frame = false
 	gui.Views.Search.Editor = gocui.EditorFunc(gui.searchEditor)
 
-	for _, view := range []*gocui.View{gui.Views.Main, gui.Views.Secondary, gui.Views.Staging, gui.Views.StagingSecondary, gui.Views.PatchBuilding, gui.Views.PatchBuildingSecondary, gui.Views.MergeConflicts} {
+	for _, view := range []*gocui.View{gui.Views.Main, gui.Views.Secondary, gui.Views.Staging, gui.Views.StagingSecondary, gui.Views.PatchBuilding, gui.Views.PatchBuildingSecondary, gui.Views.MergeConflicts, gui.Views.PrReviewDiff} {
 		view.Wrap = true
 		view.UnderlineHyperLinksOnlyOnHover = true
 		view.AutoRenderHyperLinks = true
@@ -188,6 +190,7 @@ func (gui *Gui) configureViewProperties() {
 	gui.Views.Branches.Title = gui.c.Tr.BranchesTitle
 	gui.Views.Remotes.Title = gui.c.Tr.RemotesTitle
 	gui.Views.PullRequests.Title = gui.c.Tr.PullRequestsTitle
+	gui.Views.PrReview.Title = gui.c.Tr.PrReviewTitle
 	gui.Views.Worktrees.Title = gui.c.Tr.WorktreesTitle
 	gui.Views.Tags.Title = gui.c.Tr.TagsTitle
 	gui.Views.Files.Title = gui.c.Tr.FilesTitle
@@ -203,7 +206,7 @@ func (gui *Gui) configureViewProperties() {
 	gui.Views.Extras.Title = gui.c.Tr.CommandLog
 	gui.Views.Snake.Title = gui.c.Tr.SnakeTitle
 
-	for _, view := range []*gocui.View{gui.Views.Main, gui.Views.Secondary, gui.Views.Staging, gui.Views.StagingSecondary, gui.Views.PatchBuilding, gui.Views.PatchBuildingSecondary, gui.Views.MergeConflicts} {
+	for _, view := range []*gocui.View{gui.Views.Main, gui.Views.Secondary, gui.Views.Staging, gui.Views.StagingSecondary, gui.Views.PatchBuilding, gui.Views.PatchBuildingSecondary, gui.Views.MergeConflicts, gui.Views.PrReviewDiff} {
 		view.Title = gui.c.Tr.DiffTitle
 		view.CanScrollPastBottom = gui.c.UserConfig().Gui.ScrollPastBottom
 		view.TabWidth = gui.c.UserConfig().Gui.TabWidth

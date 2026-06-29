@@ -232,6 +232,20 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` <esc> `` | Exit back to side panel |  |
 | `` / `` | Start met zoeken |  |
 
+## PR Review
+
+| Key | Action | Info |
+|-----|--------|-------------|
+| `` <enter> `` | View diff |  |
+| `` <space> `` | Toggle reviewed |  |
+| `` t `` | Toggle unified / side-by-side diff |  |
+| `` d `` | View PR description |  |
+| `` 0 `` | Focus main view |  |
+| `` / `` | Filter the current view by text |  |
+| `` <space> `` | Range select down |  |
+| `` c `` | Add review comment |  |
+| `` <esc> `` | Ga terug naar het bestanden paneel |  |
+
 ## Patch bouwen
 
 | Key | Action | Info |

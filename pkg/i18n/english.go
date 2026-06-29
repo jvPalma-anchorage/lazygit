@@ -345,6 +345,33 @@ type TranslationSet struct {
 	CommitMenuTitle                       string
 	RemotesTitle                          string
 	PullRequestsTitle                     string
+	PrReviewTitle                         string
+	PrReviewLoading                       string
+	PrReviewLoadError                     string
+	PrReviewTruncated                     string
+	PrReviewMustBeInCheckout              string
+	PrReviewOutdatedSection               string
+	PrReviewGlobalCommentsSection         string
+	PrReviewReviewersSection              string
+	PrReviewNoChangedFiles                string
+	PrReviewResolvedBadge                 string
+	PrReviewUnresolvedBadge               string
+	PrReviewReplyLabel                    string
+	PrReviewAddCommentDescription         string
+	PrReviewAddCommentTitle               string
+	PrReviewCommentAdded                  string
+	PrReviewCommentFailed                 string
+	PrReviewNoDiffSelected                string
+	PrReviewCommentSingleFile             string
+	PrReviewCommentLeftSideUnsupported    string
+	PrReviewToggleReviewedDescription     string
+	PrReviewToggleDiffModeDescription     string
+	PrReviewDescriptionDescription        string
+	PrReviewNoDescription                 string
+	PrReviewReviewedMarker                string
+	PrReviewUnreviewedMarker              string
+	PrReviewConversationTitle             string
+	PrReviewEnterDiffDescription          string
 	RemoteBranchesTitle                   string
 	PatchBuildingTitle                    string
 	InformationTitle                      string
@@ -1465,6 +1492,33 @@ func EnglishTranslationSet() *TranslationSet {
 		CommitMenuTitle:                      "Commit Menu",
 		RemotesTitle:                         "Remotes",
 		PullRequestsTitle:                    "Pull Requests",
+		PrReviewTitle:                        "PR Review",
+		PrReviewLoading:                      "Loading pull request review...",
+		PrReviewLoadError:                    "Failed to load pull request review: %s",
+		PrReviewTruncated:                    "Note: some review data was truncated (this PR exceeds the first-page fetch limit).",
+		PrReviewMustBeInCheckout:             "PR review mode must be launched inside a checkout of %s. Configure gh-dash repoPaths so it can `cd` into the repository before launching lazygit.",
+		PrReviewOutdatedSection:              "Outdated / other threads",
+		PrReviewGlobalCommentsSection:        "Conversation",
+		PrReviewReviewersSection:             "Reviewers",
+		PrReviewNoChangedFiles:               "This pull request has no changed files.",
+		PrReviewResolvedBadge:                "RESOLVED",
+		PrReviewUnresolvedBadge:              "UNRESOLVED",
+		PrReviewReplyLabel:                   "(reply)",
+		PrReviewAddCommentDescription:        "Add review comment",
+		PrReviewAddCommentTitle:              "Review comment (RIGHT side: added/context lines)",
+		PrReviewCommentAdded:                 "Review comment added",
+		PrReviewCommentFailed:                "Failed to add review comment: %s",
+		PrReviewNoDiffSelected:               "Select a diff line to comment on",
+		PrReviewCommentSingleFile:            "A review comment range must stay within a single file",
+		PrReviewCommentLeftSideUnsupported:   "Adding comments on deletion (left-side) lines is not supported yet; select added or context lines",
+		PrReviewToggleReviewedDescription:    "Toggle reviewed",
+		PrReviewToggleDiffModeDescription:    "Toggle unified / side-by-side diff",
+		PrReviewDescriptionDescription:       "View PR description",
+		PrReviewNoDescription:                "This pull request has no description.",
+		PrReviewReviewedMarker:               "[x]",
+		PrReviewUnreviewedMarker:             "[ ]",
+		PrReviewConversationTitle:            "Conversation",
+		PrReviewEnterDiffDescription:         "View diff",
 		RemoteBranchesTitle:                  "Remote branches",
 		PatchBuildingTitle:                   "Main panel (patch building)",
 		InformationTitle:                     "Information",

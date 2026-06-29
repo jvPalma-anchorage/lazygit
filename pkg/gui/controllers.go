@@ -270,6 +270,7 @@ func (gui *Gui) resetHelpersAndControllers() {
 		gui.State.Contexts.SubCommits,
 		gui.State.Contexts.CommitFiles,
 		gui.State.Contexts.Stash,
+		gui.State.Contexts.PrReview,
 	} {
 		controllers.AttachControllers(context, controllers.NewSwitchToFocusedMainViewController(
 			common, context,
@@ -355,6 +356,14 @@ func (gui *Gui) resetHelpersAndControllers() {
 
 	controllers.AttachControllers(gui.State.Contexts.CommitFiles,
 		commitFilesController,
+	)
+
+	controllers.AttachControllers(gui.State.Contexts.PrReview,
+		controllers.NewPrReviewController(common),
+	)
+
+	controllers.AttachControllers(gui.State.Contexts.PrReviewDiff,
+		controllers.NewPrReviewDiffController(common),
 	)
 
 	controllers.AttachControllers(gui.State.Contexts.Remotes,

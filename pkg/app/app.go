@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -42,6 +43,19 @@ func Run(
 	common *common.Common,
 	startArgs appTypes.StartArgs,
 ) {
+	// PR review mode (v1) requires a local checkout. Fail fast here rather than
+	// letting setupRepo prompt for `git init` on stdin (which would hang under a
+	// non-interactive launch from gh-dash).
+	if startArgs.ReviewTarget != nil {
+		cwd, err := os.Getwd()
+		if err != nil {
+			log.Fatal(err)
+		}
+		if err := ensureReviewModeRepo(startArgs.ReviewTarget, cwd, common.Tr); err != nil {
+			log.Fatal(err)
+		}
+	}
+
 	app, err := NewApp(config, startArgs.IntegrationTest, common)
 
 	if err == nil {
@@ -165,6 +179,34 @@ func (app *App) validateGitVersion() (*git_commands.GitVersion, error) {
 func isDirectoryAGitRepository(dir string) (bool, error) {
 	info, err := os.Stat(filepath.Join(dir, ".git"))
 	return info != nil, err
+}
+
+// ensureReviewModeRepo returns an error when PR review mode is requested from a
+// directory that is not inside a git work tree. v1 requires launching inside a
+// checkout (gh-dash does `cd {{.RepoPath}}` before launching). We use git's own
+// work-tree detection (not a shallow `.git` stat) so launching from a subdirectory
+// of the checkout works, matching how lazygit resolves the repo normally.
+func ensureReviewModeRepo(target *appTypes.ReviewTarget, cwd string, tr *i18n.TranslationSet) error {
+	if target == nil {
+		return nil
+	}
+
+	if isInsideGitWorkTree(cwd) {
+		return nil
+	}
+
+	return fmt.Errorf(tr.PrReviewMustBeInCheckout, fmt.Sprintf("%s/%s", target.Owner, target.Repo))
+}
+
+// isInsideGitWorkTree reports whether dir is anywhere inside a git work tree,
+// walking up the directory hierarchy the way git does (so subdirectories, linked
+// worktrees, and submodules all resolve correctly). Falls back to false when the
+// git binary is unavailable or errors.
+func isInsideGitWorkTree(dir string) bool {
+	cmd := exec.Command("git", "rev-parse", "--is-inside-work-tree")
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	return err == nil && strings.TrimSpace(string(out)) == "true"
 }
 
 func openRecentRepo(app *App) bool {

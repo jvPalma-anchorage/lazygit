@@ -57,6 +57,20 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` <enter> `` | 確認 |  |
 | `` <esc> `` | 關閉/取消 |  |
 
+## PR Review
+
+| Key | Action | Info |
+|-----|--------|-------------|
+| `` <enter> `` | View diff |  |
+| `` <space> `` | Toggle reviewed |  |
+| `` t `` | Toggle unified / side-by-side diff |  |
+| `` d `` | View PR description |  |
+| `` 0 `` | Focus main view |  |
+| `` / `` | 搜尋 |  |
+| `` <space> `` | Range select down |  |
+| `` c `` | Add review comment |  |
+| `` <esc> `` | 返回檔案面板 |  |
+
 ## Pull Requests
 
 | Key | Action | Info |
