@@ -65,6 +65,7 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` <space> `` | Toggle reviewed |  |
 | `` t `` | Toggle unified / side-by-side diff |  |
 | `` d `` | View PR description |  |
+| `` R `` | Refresh pull request |  |
 | `` 0 `` | メインビューにフォーカス |  |
 | `` / `` | 現在のビューをテキストでフィルタリング |  |
 | `` <space> `` | 範囲選択を下に |  |

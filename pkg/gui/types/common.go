@@ -397,6 +397,9 @@ type IRepoStateAccessor interface {
 	GetSearchState() *SearchState
 	SetSplitMainPanel(bool)
 	GetSplitMainPanel() bool
+	// GetReviewMode reports whether this repo state was booted into PR review mode
+	// (StartArgs.ReviewTarget set). It drives the dedicated review window layout.
+	GetReviewMode() bool
 }
 
 // startup stages so we don't need to load everything at once

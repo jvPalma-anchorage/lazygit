@@ -589,7 +589,9 @@ func (self *CommitLoader) getLogCmd(opts GetCommitsOptions) *oscommands.CmdObj {
 	cmdArgs := NewGitCmd("log").
 		Arg(refSpec).
 		ArgIf(gitLogOrder != "default", "--"+gitLogOrder).
-		ArgIf(opts.All, "--all").
+		// Keep the isolated PR-review refs (refs/lazygit-review/*) out of the normal
+		// commit graph. --exclude must precede --all to filter the ref globs it adds.
+		ArgIf(opts.All, "--exclude="+ReviewRefNamespace+"/*", "--all").
 		Arg("--oneline").
 		Arg(prettyFormat).
 		Arg("--abbrev=40").

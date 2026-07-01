@@ -71,6 +71,14 @@ type Gui struct {
 	// viewTabMap) instead of calling exec.LookPath repeatedly.
 	ghAvailable bool
 
+	// whether lazygit was booted into PR review mode (StartArgs.ReviewTarget set).
+	// This is a process-global fact (the review target is fixed for the session),
+	// so it is mirrored here on the Gui struct in addition to GuiRepoState.ReviewMode.
+	// The Gui-level copy is needed because configureViewProperties (which binds the
+	// [1]/[2]/[3] panel-jump labels) runs on the first config load, before
+	// resetState creates the repo state — so gui.State is nil at that point.
+	isReviewMode bool
+
 	// whether the `glow` markdown renderer was found on PATH at startup.
 	// Resolved once because spawning glow costs tens of milliseconds; read by
 	// renderMarkdown to decide whether to render PR-review markdown bodies.
@@ -270,6 +278,12 @@ type GuiRepoState struct {
 	CurrentPopupOpts *types.CreatePopupPanelOpts
 
 	LastBackgroundFetchTime time.Time
+
+	// ReviewMode is true when this repo state was booted into PR review mode
+	// (StartArgs.ReviewTarget set). It makes lazygit render the dedicated review
+	// side-window layout (prList/prContent/prActivity) instead of the normal
+	// files/branches/commits windows, owning its own tabs and panel numbers.
+	ReviewMode bool
 }
 
 var _ types.IRepoStateAccessor = new(GuiRepoState)
@@ -296,6 +310,10 @@ func (self *GuiRepoState) GetCurrentPopupOpts() *types.CreatePopupPanelOpts {
 
 func (self *GuiRepoState) SetCurrentPopupOpts(value *types.CreatePopupPanelOpts) {
 	self.CurrentPopupOpts = value
+}
+
+func (self *GuiRepoState) GetReviewMode() bool {
+	return self.ReviewMode
 }
 
 func (self *GuiRepoState) GetScreenMode() types.ScreenMode {
@@ -333,6 +351,11 @@ func (gui *Gui) onSwitchToNewRepo(startArgs appTypes.StartArgs, contextKey types
 }
 
 func (gui *Gui) onNewRepo(startArgs appTypes.StartArgs, contextKey types.ContextKey) error {
+	// Resolve review mode before the first config load, since configureViewProperties
+	// (triggered by onUserConfigLoaded below) binds the panel-jump labels and runs
+	// before resetState builds the repo state.
+	gui.isReviewMode = startArgs.ReviewTarget != nil
+
 	var err error
 	gui.git, err = commands.NewGitCommand(
 		gui.Common,
@@ -649,6 +672,7 @@ func (gui *Gui) resetState(startArgs appTypes.StartArgs) types.Context {
 		Contexts:          contextTree,
 		WindowViewNameMap: initialWindowViewNameMap(contextTree),
 		SearchState:       types.NewSearchState(),
+		ReviewMode:        startArgs.ReviewTarget != nil,
 	}
 
 	gui.RepoStateMap[stateKey] = gui.State
@@ -875,6 +899,25 @@ func (gui *Gui) initGocui(headless bool, test integrationTypes.IntegrationTest) 
 }
 
 func (gui *Gui) viewTabMap() map[string][]context.TabView {
+	// In PR review mode the side section is the dedicated review workspace with its
+	// own tabs; the normal files/branches/commits tabs are not present at all.
+	if gui.isReviewMode {
+		return map[string][]context.TabView{
+			"prList": {
+				{Tab: gui.c.Tr.PrListTitle, ViewName: "prList"},
+			},
+			"prContent": {
+				{Tab: gui.c.Tr.PrOverviewTitle, ViewName: "prOverview"},
+				{Tab: gui.c.Tr.PrFilesChangedTitle, ViewName: "prReview"},
+			},
+			"prActivity": {
+				{Tab: gui.c.Tr.PrReviewConversationTitle, ViewName: "prConversation"},
+				{Tab: gui.c.Tr.PrChecksTitle, ViewName: "prChecks"},
+				{Tab: gui.c.Tr.PrCommitsTitle, ViewName: "prCommits"},
+			},
+		}
+	}
+
 	branchesTabs := []context.TabView{
 		{
 			Tab:      gui.c.Tr.LocalBranchesTitle,

@@ -51,7 +51,11 @@ func Run(
 		if err != nil {
 			log.Fatal(err)
 		}
-		if err := ensureReviewModeRepo(startArgs.ReviewTarget, cwd, common.Tr); err != nil {
+		// Integration tests boot review mode against a hermetic local fixture whose
+		// remotes can't (and shouldn't) resolve to the launched owner/repo, and have
+		// no gh CLI; skip the live identity/gh checks there.
+		skipLiveChecks := startArgs.IntegrationTest != nil
+		if err := ensureReviewModeRepo(startArgs.ReviewTarget, cwd, common.Tr, skipLiveChecks); err != nil {
 			log.Fatal(err)
 		}
 	}
@@ -186,16 +190,120 @@ func isDirectoryAGitRepository(dir string) (bool, error) {
 // checkout (gh-dash does `cd {{.RepoPath}}` before launching). We use git's own
 // work-tree detection (not a shallow `.git` stat) so launching from a subdirectory
 // of the checkout works, matching how lazygit resolves the repo normally.
-func ensureReviewModeRepo(target *appTypes.ReviewTarget, cwd string, tr *i18n.TranslationSet) error {
+func ensureReviewModeRepo(target *appTypes.ReviewTarget, cwd string, tr *i18n.TranslationSet, skipLiveChecks bool) error {
 	if target == nil {
 		return nil
 	}
 
-	if isInsideGitWorkTree(cwd) {
+	if !isInsideGitWorkTree(cwd) {
+		return fmt.Errorf(tr.PrReviewMustBeInCheckout, fmt.Sprintf("%s/%s", target.Owner, target.Repo))
+	}
+
+	if skipLiveChecks {
 		return nil
 	}
 
-	return fmt.Errorf(tr.PrReviewMustBeInCheckout, fmt.Sprintf("%s/%s", target.Owner, target.Repo))
+	// Fail fast (D1.5) when the gh CLI is missing or unauthenticated: every data
+	// fetch and comment post shells out to it, so otherwise the session could only
+	// ever show load errors. `gh auth status` is bounded by gh's own timeout, so this
+	// check cannot hang the boot.
+	if _, err := exec.LookPath("gh"); err != nil {
+		return errors.New(tr.PrReviewGhNotFound)
+	}
+	if err := exec.Command("gh", "auth", "status").Run(); err != nil {
+		return errors.New(tr.PrReviewGhNotAuthenticated)
+	}
+
+	// Repo-safety P0: confirm the checkout actually IS the target owner/repo, so a
+	// gh-dash misconfig can't write review refs into — or post comments against — the
+	// wrong repository. The head may live in a fork, but gh-dash cds into the BASE
+	// checkout, so a remote must resolve to the launched owner/repo.
+	if !checkoutMatchesTarget(gitRemoteURLs(cwd), target.Owner, target.Repo) {
+		return fmt.Errorf(tr.PrReviewRepoMismatch, fmt.Sprintf("%s/%s", target.Owner, target.Repo))
+	}
+
+	return nil
+}
+
+// gitRemoteURLs returns the fetch/push URLs of every remote configured in dir.
+// Returns nil when git is unavailable or there are no remotes.
+func gitRemoteURLs(dir string) []string {
+	cmd := exec.Command("git", "remote", "-v")
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		return nil
+	}
+
+	lines := strings.Split(string(out), "\n")
+	urls := make([]string, 0, len(lines))
+	seen := map[string]bool{}
+	for _, line := range lines {
+		fields := strings.Fields(line)
+		// Format: "<name>\t<url> (fetch|push)"
+		if len(fields) < 2 || seen[fields[1]] {
+			continue
+		}
+		seen[fields[1]] = true
+		urls = append(urls, fields[1])
+	}
+	return urls
+}
+
+// checkoutMatchesTarget reports whether any of the given remote URLs resolves to the
+// target owner/repo on GitHub (case-insensitive). The host is checked too: a remote
+// like https://evil.example/owner/repo must NOT satisfy a github.com target. v1 is
+// github.com-only (matching the hard-coded auth host), so any github.com host
+// (including a *.github.com alias) is accepted and everything else is rejected.
+func checkoutMatchesTarget(remoteURLs []string, owner string, repo string) bool {
+	for _, url := range remoteURLs {
+		host, o, r, ok := parseRepoIdentity(url)
+		if ok && isGitHubHost(host) && strings.EqualFold(o, owner) && strings.EqualFold(r, repo) {
+			return true
+		}
+	}
+	return false
+}
+
+func isGitHubHost(host string) bool {
+	host = strings.ToLower(host)
+	return host == "github.com" || strings.HasSuffix(host, ".github.com")
+}
+
+// parseRepoIdentity extracts (host, owner, repo) from a git remote URL across the
+// common forms: https://host/owner/repo(.git), git@host:owner/repo(.git),
+// ssh://git@host/owner/repo(.git). A trailing ".git" is stripped. Returns ok=false
+// when the URL doesn't look like an owner/repo remote.
+func parseRepoIdentity(remoteURL string) (string, string, string, bool) {
+	s := strings.TrimSpace(remoteURL)
+	s = strings.TrimSuffix(s, ".git")
+
+	// Normalise scp-like syntax (git@host:owner/repo) and URL schemes to
+	// "host/owner/repo".
+	if i := strings.Index(s, "://"); i != -1 {
+		s = s[i+3:] // strip scheme
+	}
+	if at := strings.LastIndex(s, "@"); at != -1 {
+		s = s[at+1:] // strip user@
+	}
+	// Now s is "host[:port]/owner/repo" or "host:owner/repo" (scp form). Fold the
+	// first ':' (scp separator or port) into a '/' so a uniform split yields the
+	// host first and owner/repo last.
+	if colon := strings.Index(s, ":"); colon != -1 {
+		s = s[:colon] + "/" + s[colon+1:]
+	}
+
+	parts := strings.Split(s, "/")
+	if len(parts) < 3 {
+		return "", "", "", false
+	}
+	host := parts[0]
+	repo := parts[len(parts)-1]
+	owner := parts[len(parts)-2]
+	if host == "" || owner == "" || repo == "" {
+		return "", "", "", false
+	}
+	return host, owner, repo, true
 }
 
 // isInsideGitWorkTree reports whether dir is anywhere inside a git work tree,

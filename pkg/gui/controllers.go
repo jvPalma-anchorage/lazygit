@@ -234,6 +234,14 @@ func (gui *Gui) resetHelpersAndControllers() {
 		gui.State.Contexts.CommitFiles,
 		gui.State.Contexts.SubCommits,
 		gui.State.Contexts.Stash,
+		// PR review workspace side contexts, so Left/Right (PrevBlock/NextBlock) cycle
+		// the review panels (prList/prContent/prActivity) too.
+		gui.State.Contexts.PrList,
+		gui.State.Contexts.PrReview,
+		gui.State.Contexts.PrOverview,
+		gui.State.Contexts.PrConversation,
+		gui.State.Contexts.PrChecks,
+		gui.State.Contexts.PrCommits,
 	} {
 		controllers.AttachControllers(context, sideWindowControllerFactory.Create(context))
 	}
@@ -364,6 +372,18 @@ func (gui *Gui) resetHelpersAndControllers() {
 
 	controllers.AttachControllers(gui.State.Contexts.PrReviewDiff,
 		controllers.NewPrReviewDiffController(common),
+	)
+
+	controllers.AttachControllers(gui.State.Contexts.PrCommits,
+		controllers.NewPrCommitsController(common),
+	)
+
+	controllers.AttachControllers(gui.State.Contexts.PrConversation,
+		controllers.NewPrConversationController(common),
+	)
+
+	controllers.AttachControllers(gui.State.Contexts.PrOverview,
+		controllers.NewPrOverviewController(common),
 	)
 
 	controllers.AttachControllers(gui.State.Contexts.Remotes,

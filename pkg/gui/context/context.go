@@ -17,6 +17,11 @@ const (
 	PULL_REQUESTS_CONTEXT_KEY            types.ContextKey = "pullRequests"
 	PR_REVIEW_CONTEXT_KEY                types.ContextKey = "prReview"
 	PR_REVIEW_DIFF_CONTEXT_KEY           types.ContextKey = "prReviewDiff"
+	PR_LIST_CONTEXT_KEY                  types.ContextKey = "prList"
+	PR_OVERVIEW_CONTEXT_KEY              types.ContextKey = "prOverview"
+	PR_CONVERSATION_CONTEXT_KEY          types.ContextKey = "prConversation"
+	PR_CHECKS_CONTEXT_KEY                types.ContextKey = "prChecks"
+	PR_COMMITS_CONTEXT_KEY               types.ContextKey = "prCommits"
 	WORKTREES_CONTEXT_KEY                types.ContextKey = "worktrees"
 	REMOTE_BRANCHES_CONTEXT_KEY          types.ContextKey = "remoteBranches"
 	TAGS_CONTEXT_KEY                     types.ContextKey = "tags"
@@ -62,6 +67,11 @@ var AllContextKeys = []types.ContextKey{
 	PULL_REQUESTS_CONTEXT_KEY,
 	PR_REVIEW_CONTEXT_KEY,
 	PR_REVIEW_DIFF_CONTEXT_KEY,
+	PR_LIST_CONTEXT_KEY,
+	PR_OVERVIEW_CONTEXT_KEY,
+	PR_CONVERSATION_CONTEXT_KEY,
+	PR_CHECKS_CONTEXT_KEY,
+	PR_COMMITS_CONTEXT_KEY,
 	WORKTREES_CONTEXT_KEY,
 	REMOTE_BRANCHES_CONTEXT_KEY,
 	TAGS_CONTEXT_KEY,
@@ -102,6 +112,11 @@ type ContextTree struct {
 	PullRequests                *PullRequestsContext
 	PrReview                    *PrReviewContext
 	PrReviewDiff                *PrReviewDiffContext
+	PrList                      types.Context
+	PrOverview                  types.Context
+	PrConversation              *PrConversationContext
+	PrChecks                    types.Context
+	PrCommits                   *PrCommitsContext
 	Worktrees                   *WorktreesContext
 	Submodules                  *SubmodulesContext
 	RemoteBranches              *RemoteBranchesContext
@@ -141,7 +156,15 @@ func (self *ContextTree) Flatten() []types.Context {
 		self.Snake,
 		self.Submodules,
 		self.Worktrees,
+		// PR review windows. Within a window the later entry sits on top initially,
+		// so each window's default tab is listed last: prContent defaults to the
+		// Overview tab, prActivity to the Conversation tab.
+		self.PrList,
 		self.PrReview,
+		self.PrOverview,
+		self.PrChecks,
+		self.PrCommits,
+		self.PrConversation,
 		self.Files,
 		self.SubCommits,
 		self.Remotes,

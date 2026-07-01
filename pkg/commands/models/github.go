@@ -86,6 +86,22 @@ type Reviewer struct {
 	State string
 }
 
+// ID implements the list-view-model HasID interface (login uniquely identifies a
+// reviewer within a PR).
+func (r *Reviewer) ID() string {
+	return r.Login
+}
+
+// Review is a single submitted pull-request review: its author, its state, and its
+// optional summary body (the text entered when submitting the review). Used to show a
+// reviewer's review body in the Conversation tab.
+type Review struct {
+	Author      string
+	State       string
+	Body        string
+	SubmittedAt string
+}
+
 // GithubPullRequestFile is a file changed by a pull request, with its unified
 // diff Patch as returned by the REST pulls/{n}/files endpoint.
 type GithubPullRequestFile struct {

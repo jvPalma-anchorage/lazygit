@@ -710,6 +710,47 @@ type AppState struct {
 	// Cache of GitHub pull requests per repo path, so that PR info can be
 	// shown instantly on startup before the async refresh completes.
 	GithubPullRequests map[string][]CachedPullRequest `yaml:"githubPullRequests"`
+
+	// ReviewedFiles tracks per-file "viewed" marks for PR review mode, keyed by a
+	// stable composite key (see ReviewedFileKey). A mark is honored only while the
+	// stored content identity (the head blob OID) still matches, so a new commit that
+	// changes the file auto-clears it — mirroring GitHub's "viewed" checkbox.
+	ReviewedFiles map[string]ReviewedFileState `yaml:"reviewedFiles"`
+}
+
+// ReviewedFileState is one persisted "viewed" mark. Identity is content-based:
+// FileOid (the head blob SHA) for normal files, or PatchHash (a hash of the unified
+// diff) when no single blob applies. Path/PreviousPath/Status disambiguate
+// renames/deletions; ViewedAt drives pruning.
+type ReviewedFileState struct {
+	Repo         string `yaml:"repo"`
+	PR           int    `yaml:"pr"`
+	Path         string `yaml:"path"`
+	Status       string `yaml:"status"`
+	PreviousPath string `yaml:"previousPath,omitempty"`
+	FileOid      string `yaml:"fileOid,omitempty"`
+	PatchHash    string `yaml:"patchHash,omitempty"`
+	ViewedAt     int64  `yaml:"viewedAt"`
+}
+
+// ReviewedFileKey is the map key identifying a reviewed file: the runtime-resolved
+// repo, the PR number, and the new-file path. The content identity that decides
+// invalidation lives in the value, not the key.
+func ReviewedFileKey(repo string, pr int, path string) string {
+	return fmt.Sprintf("%s#%d#%s", repo, pr, path)
+}
+
+// MatchesContent reports whether the stored mark still applies to the current content
+// identity (head blob OID, with a patch-hash fallback for blob-less cases). A mismatch
+// means the file changed since it was marked viewed, so the mark must not be honored.
+func (s ReviewedFileState) MatchesContent(currentOid string, currentPatchHash string) bool {
+	if s.FileOid != "" {
+		return s.FileOid == currentOid
+	}
+	if s.PatchHash != "" {
+		return s.PatchHash == currentPatchHash
+	}
+	return false
 }
 
 // CachedPullRequest stores the essential fields of a GitHub pull request
@@ -726,6 +767,7 @@ type CachedPullRequest struct {
 func getDefaultAppState() *AppState {
 	return &AppState{
 		GithubPullRequests: make(map[string][]CachedPullRequest),
+		ReviewedFiles:      make(map[string]ReviewedFileState),
 	}
 }
 

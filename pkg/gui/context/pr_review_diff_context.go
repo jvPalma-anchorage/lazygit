@@ -1,7 +1,6 @@
 package context
 
 import (
-	"github.com/jesseduffield/lazygit/pkg/commands/models"
 	"github.com/jesseduffield/lazygit/pkg/commands/patch"
 	"github.com/jesseduffield/lazygit/pkg/gui/presentation"
 	"github.com/jesseduffield/lazygit/pkg/gui/types"
@@ -18,8 +17,12 @@ type PrReviewDiffContext struct {
 	*SimpleContext
 	c *ContextCommon
 
-	rendered    *presentation.RenderedReviewDiff
-	file        *models.GithubPullRequestFile
+	rendered *presentation.RenderedReviewDiff
+	// path and patch are the cursor file's path and raw unified patch, sourced
+	// mode-agnostically (gh-API patch or a plain local `git diff`) from the tree.
+	// SelectedCommentTarget maps line numbers from this exact patch string.
+	path        string
+	patch       string
 	cachedWidth int
 
 	// selectedRow is the view line index of the cursor (always a DIFF row, or -1);
@@ -64,6 +67,14 @@ func (self *PrReviewDiffContext) PrepareForEntry() {
 	self.onRender()
 }
 
+// Invalidate drops the cached render so the next onRender re-pulls the diff (and any
+// newly-loaded review threads). Used after a comment post + data reload so the new
+// comment appears inline without the user re-entering the file.
+func (self *PrReviewDiffContext) Invalidate() {
+	self.rendered = nil
+	self.cachedWidth = -1
+}
+
 // treeContext returns the live file-tree context (fetched by key, so it is always
 // the current instance even after a context-tree rebuild).
 func (self *PrReviewDiffContext) treeContext() *PrReviewContext {
@@ -93,7 +104,7 @@ func (self *PrReviewDiffContext) onRender() {
 	}
 
 	if self.rendered == nil || self.cachedWidth != width {
-		self.rendered, self.file = tree.RenderedSelectedDiff(width)
+		self.rendered, self.path, self.patch = tree.SelectedFileDiff(width)
 		self.cachedWidth = width
 		if self.rendered == nil {
 			self.c.SetViewContent(view, "")
@@ -180,7 +191,7 @@ func (self *PrReviewDiffContext) applySelectionToView() {
 // line numbers (RIGHT side). Returns a non-empty errMsg when nothing is selected or
 // when either endpoint is a deletion (LEFT-side) line, which v1 cannot comment on.
 func (self *PrReviewDiffContext) SelectedCommentTarget() (path string, startLine int, line int, errMsg string) {
-	if self.rendered == nil || self.file == nil || self.selectedRow < 0 || self.rangeAnchor < 0 {
+	if self.rendered == nil || self.patch == "" || self.path == "" || self.selectedRow < 0 || self.rangeAnchor < 0 {
 		return "", 0, 0, self.c.Tr.PrReviewNoDiffSelected
 	}
 
@@ -194,19 +205,37 @@ func (self *PrReviewDiffContext) SelectedCommentTarget() (path string, startLine
 		return "", 0, 0, self.c.Tr.PrReviewNoDiffSelected
 	}
 
-	p := patch.Parse(self.file.Patch)
-	lines := p.Lines()
-	startFileLine, ok1 := rightSideFileLine(p, lines, self.rendered.RowPatchIdx[startRow])
-	endFileLine, ok2 := rightSideFileLine(p, lines, self.rendered.RowPatchIdx[endRow])
-	if !ok1 || !ok2 {
+	startFileLine, endFileLine, ok := reviewCommentRange(self.patch, self.rendered.RowPatchIdx[startRow], self.rendered.RowPatchIdx[endRow])
+	if !ok {
 		return "", 0, 0, self.c.Tr.PrReviewCommentLeftSideUnsupported
 	}
+	return self.path, startFileLine, endFileLine, ""
+}
 
+// reviewCommentRange maps two patch-line indices (the selection endpoints) to the
+// GitHub new-file (RIGHT-side) line numbers for an add-comment call. It parses the
+// unified patch — which may be a full `git diff` (with header) or a hunk-only gh-API
+// patch; the @@-derived line numbers are identical either way, matching GitHub's
+// pulls/{n}/files coordinates. ok is false when either endpoint is a deletion line
+// (LEFT side, which v1 cannot comment on). The returned range is start<=end.
+//
+// Only the endpoints are required to be RIGHT-side: GitHub anchors a multi-line
+// comment by its start_line..line RIGHT-side line numbers, and deletions lying
+// between them are irrelevant to the API. Rejecting interior deletions would block
+// commenting on any modified block (every modification is a delete + an add), so it
+// is deliberately NOT done.
+func reviewCommentRange(patchStr string, startPatchIdx int, endPatchIdx int) (int, int, bool) {
+	p := patch.Parse(patchStr)
+	lines := p.Lines()
+	startFileLine, ok1 := rightSideFileLine(p, lines, startPatchIdx)
+	endFileLine, ok2 := rightSideFileLine(p, lines, endPatchIdx)
+	if !ok1 || !ok2 {
+		return 0, 0, false
+	}
 	if startFileLine > endFileLine {
 		startFileLine, endFileLine = endFileLine, startFileLine
 	}
-
-	return self.file.Filename, startFileLine, endFileLine, ""
+	return startFileLine, endFileLine, true
 }
 
 // rightSideFileLine returns the new-file line number for a patch line, rejecting

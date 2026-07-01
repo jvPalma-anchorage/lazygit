@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/jesseduffield/lazygit/pkg/commands/models"
 )
@@ -14,16 +15,30 @@ import (
 // reviewers that the review UI renders. Truncated is set when any paginated
 // connection reported hasNextPage (v1 caps each connection at first:50, see D3).
 type PullRequestReviewData struct {
-	ID            string
-	Number        int
-	Title         string
-	Body          string
-	State         string
-	HeadRefOid    string
+	ID     string
+	Number int
+	Title  string
+	Body   string
+	State  string
+	// Author, BaseRefName and HeadRefName describe the PR for the Overview tab.
+	Author      string
+	BaseRefName string
+	HeadRefName string
+	HeadRefOid  string
+	// BaseRefOid, BaseRepoURL and HeadRepoURL drive the local-ref read model
+	// (DW2 / Phase 2): the exact OIDs to fetch and the per-side repo URLs (which
+	// differ for a fork head) so the fetch is reproducible and fork-aware.
+	BaseRefOid    string
+	BaseRepoURL   string
+	HeadRepoURL   string
 	Threads       []models.ReviewThread
 	IssueComments []models.IssueComment
 	Reviewers     []models.Reviewer
-	Truncated     bool
+	// Reviews are the submitted reviews with their summary bodies, for the
+	// Conversation tab's per-reviewer detail (Phase 6). Reviewers (above) carries
+	// only the latest state per author for the badge list.
+	Reviews   []models.Review
+	Truncated bool
 }
 
 // reviewDataQuery is the combined read query (design.md D3). It mirrors the
@@ -34,7 +49,9 @@ type PullRequestReviewData struct {
 const reviewDataQuery = `query($owner:String!,$repo:String!,$number:Int!){
   repository(owner:$owner,name:$repo){
     pullRequest(number:$number){
-      id number title state isDraft baseRefName headRefName headRefOid body
+      id number title state isDraft baseRefName headRefName headRefOid baseRefOid body
+      baseRepository{ url }
+      headRepository{ url }
       author{ login }
       comments(first:50){ pageInfo{ hasNextPage }
         nodes{ author{ login } body createdAt } }
@@ -159,17 +176,24 @@ type graphQLLogin struct {
 }
 
 type reviewPullRequestNode struct {
-	ID          string        `json:"id"`
-	Number      int           `json:"number"`
-	Title       string        `json:"title"`
-	State       string        `json:"state"`
-	IsDraft     bool          `json:"isDraft"`
-	BaseRefName string        `json:"baseRefName"`
-	HeadRefName string        `json:"headRefName"`
-	HeadRefOid  string        `json:"headRefOid"`
-	Body        string        `json:"body"`
-	Author      *graphQLLogin `json:"author"`
-	Comments    struct {
+	ID             string `json:"id"`
+	Number         int    `json:"number"`
+	Title          string `json:"title"`
+	State          string `json:"state"`
+	IsDraft        bool   `json:"isDraft"`
+	BaseRefName    string `json:"baseRefName"`
+	HeadRefName    string `json:"headRefName"`
+	HeadRefOid     string `json:"headRefOid"`
+	BaseRefOid     string `json:"baseRefOid"`
+	Body           string `json:"body"`
+	BaseRepository *struct {
+		URL string `json:"url"`
+	} `json:"baseRepository"`
+	HeadRepository *struct {
+		URL string `json:"url"`
+	} `json:"headRepository"`
+	Author   *graphQLLogin `json:"author"`
+	Comments struct {
 		PageInfo graphQLPageInfo `json:"pageInfo"`
 		Nodes    []struct {
 			Author    *graphQLLogin `json:"author"`
@@ -255,12 +279,22 @@ func parsePRReviewData(respBytes []byte) (*PullRequestReviewData, error) {
 	}
 
 	result := &PullRequestReviewData{
-		ID:         node.ID,
-		Number:     node.Number,
-		Title:      node.Title,
-		Body:       node.Body,
-		State:      node.State,
-		HeadRefOid: node.HeadRefOid,
+		ID:          node.ID,
+		Number:      node.Number,
+		Title:       node.Title,
+		Body:        node.Body,
+		State:       node.State,
+		Author:      loginOf(node.Author),
+		BaseRefName: node.BaseRefName,
+		HeadRefName: node.HeadRefName,
+		HeadRefOid:  node.HeadRefOid,
+		BaseRefOid:  node.BaseRefOid,
+	}
+	if node.BaseRepository != nil {
+		result.BaseRepoURL = node.BaseRepository.URL
+	}
+	if node.HeadRepository != nil {
+		result.HeadRepoURL = node.HeadRepository.URL
 	}
 
 	truncated := node.Comments.PageInfo.HasNextPage ||
@@ -305,6 +339,21 @@ func parsePRReviewData(respBytes []byte) (*PullRequestReviewData, error) {
 		}
 		seenReviewers[login] = true
 		result.Reviewers = append(result.Reviewers, models.Reviewer{Login: login, State: "PENDING"})
+	}
+
+	// Submitted reviews that carry a summary body, for the Conversation tab's
+	// per-reviewer detail. A body-less review (a bare approve/comment) has nothing to
+	// show here — the reviewer's state already appears in the Reviewers list.
+	for _, r := range node.Reviews.Nodes {
+		if strings.TrimSpace(r.Body) == "" {
+			continue
+		}
+		result.Reviews = append(result.Reviews, models.Review{
+			Author:      loginOf(r.Author),
+			State:       r.State,
+			Body:        r.Body,
+			SubmittedAt: r.SubmittedAt,
+		})
 	}
 
 	// Review threads.
@@ -362,9 +411,40 @@ func parsePRReviewData(respBytes []byte) (*PullRequestReviewData, error) {
 		result.Threads = append(result.Threads, thread)
 	}
 
+	// Reflect commenting activity in reviewer states. GitHub keeps a requested reviewer
+	// as PENDING even after they leave inline / PR comments (unless they submit a formal
+	// review), which misrepresents them as not having engaged. Anyone who authored an
+	// inline thread comment or a PR-body comment has effectively commented, so a PENDING
+	// reviewer with any such comment is upgraded to COMMENTED. Reviewers with a stronger
+	// state (APPROVED / CHANGES_REQUESTED / COMMENTED) are left untouched.
+	upgradePendingCommenters(result)
+
 	result.Truncated = truncated
 
 	return result, nil
+}
+
+// upgradePendingCommenters flips a reviewer's state from PENDING to COMMENTED when they
+// have authored any inline thread comment or PR-body comment.
+func upgradePendingCommenters(result *PullRequestReviewData) {
+	commenters := map[string]bool{}
+	for _, t := range result.Threads {
+		for _, c := range t.Comments {
+			if c.Author != "" {
+				commenters[c.Author] = true
+			}
+		}
+	}
+	for _, c := range result.IssueComments {
+		if c.Author != "" {
+			commenters[c.Author] = true
+		}
+	}
+	for i := range result.Reviewers {
+		if result.Reviewers[i].State == "PENDING" && commenters[result.Reviewers[i].Login] {
+			result.Reviewers[i].State = "COMMENTED"
+		}
+	}
 }
 
 // loginOf null-safely extracts a login (author can be null for a deleted

@@ -58,6 +58,7 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` <space> `` | Toggle reviewed |  |
 | `` t `` | Toggle unified / side-by-side diff |  |
 | `` d `` | View PR description |  |
+| `` R `` | Refresh pull request |  |
 | `` 0 `` | 聚焦主视图 |  |
 | `` / `` | 通过文本过滤当前视图 |  |
 | `` <space> `` | 向下扩展选择范围 |  |

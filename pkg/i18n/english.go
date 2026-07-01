@@ -350,9 +350,23 @@ type TranslationSet struct {
 	PrReviewLoadError                     string
 	PrReviewTruncated                     string
 	PrReviewMustBeInCheckout              string
+	PrReviewGhNotFound                    string
+	PrReviewGhNotAuthenticated            string
+	PrReviewRepoMismatch                  string
+	PrReviewFilesTruncated                string
 	PrReviewOutdatedSection               string
 	PrReviewGlobalCommentsSection         string
 	PrReviewReviewersSection              string
+	PrReviewReviewSummarySection          string
+	PrReviewInlineCommentsSection         string
+	PrReviewReviewerNoActivity            string
+	PrReviewOutdatedBadge                 string
+	PrReviewNoReviewers                   string
+	PrReviewViewReviewerDescription       string
+	PrReviewToggleGeneratedDescription    string
+	PrReviewGeneratedShown                string
+	PrReviewGeneratedHidden               string
+	PrReviewGeneratedHiddenNote           string
 	PrReviewNoChangedFiles                string
 	PrReviewResolvedBadge                 string
 	PrReviewUnresolvedBadge               string
@@ -367,11 +381,24 @@ type TranslationSet struct {
 	PrReviewToggleReviewedDescription     string
 	PrReviewToggleDiffModeDescription     string
 	PrReviewDescriptionDescription        string
+	PrReviewRefreshDescription            string
+	PrReviewNoCommits                     string
+	PrReviewViewCommitDescription         string
+	PrReviewUnviewedTitle                 string
+	PrReviewViewedTitle                   string
 	PrReviewNoDescription                 string
+	PrReviewDescriptionSection            string
 	PrReviewReviewedMarker                string
 	PrReviewUnreviewedMarker              string
 	PrReviewConversationTitle             string
 	PrReviewEnterDiffDescription          string
+	PrListTitle                           string
+	PrOverviewTitle                       string
+	PrChecksTitle                         string
+	PrCommitsTitle                        string
+	PrContentTitle                        string
+	PrActivityTitle                       string
+	PrFilesChangedTitle                   string
 	RemoteBranchesTitle                   string
 	PatchBuildingTitle                    string
 	InformationTitle                      string
@@ -1497,9 +1524,23 @@ func EnglishTranslationSet() *TranslationSet {
 		PrReviewLoadError:                    "Failed to load pull request review: %s",
 		PrReviewTruncated:                    "Note: some review data was truncated (this PR exceeds the first-page fetch limit).",
 		PrReviewMustBeInCheckout:             "PR review mode must be launched inside a checkout of %s. Configure gh-dash repoPaths so it can `cd` into the repository before launching lazygit.",
+		PrReviewGhNotFound:                   "PR review mode requires the `gh` CLI, which was not found on your PATH. Install it from https://cli.github.com and authenticate with `gh auth login`.",
+		PrReviewGhNotAuthenticated:           "PR review mode requires an authenticated `gh` CLI. Run `gh auth login` and try again.",
+		PrReviewRepoMismatch:                 "The current checkout's remotes do not resolve to %s. Launch PR review mode from a checkout of that repository (gh-dash repoPaths must `cd` into the right repo).",
+		PrReviewFilesTruncated:               "Showing the first %d changed files; %d more are hidden.",
 		PrReviewOutdatedSection:              "Outdated / other threads",
 		PrReviewGlobalCommentsSection:        "Conversation",
 		PrReviewReviewersSection:             "Reviewers",
+		PrReviewReviewSummarySection:         "Review summary",
+		PrReviewInlineCommentsSection:        "Inline comments",
+		PrReviewReviewerNoActivity:           "No review activity from this reviewer yet.",
+		PrReviewOutdatedBadge:                "OUTDATED",
+		PrReviewNoReviewers:                  "This pull request has no reviewers yet.",
+		PrReviewViewReviewerDescription:      "View this reviewer's comments",
+		PrReviewToggleGeneratedDescription:   "Show/hide generated files",
+		PrReviewGeneratedShown:               "Showing generated files",
+		PrReviewGeneratedHidden:              "Hiding generated files",
+		PrReviewGeneratedHiddenNote:          "%d generated files hidden (G to show)",
 		PrReviewNoChangedFiles:               "This pull request has no changed files.",
 		PrReviewResolvedBadge:                "RESOLVED",
 		PrReviewUnresolvedBadge:              "UNRESOLVED",
@@ -1514,11 +1555,24 @@ func EnglishTranslationSet() *TranslationSet {
 		PrReviewToggleReviewedDescription:    "Toggle reviewed",
 		PrReviewToggleDiffModeDescription:    "Toggle unified / side-by-side diff",
 		PrReviewDescriptionDescription:       "View PR description",
+		PrReviewRefreshDescription:           "Refresh pull request",
+		PrReviewNoCommits:                    "This pull request has no commits.",
+		PrReviewViewCommitDescription:        "Focus the commit's changes in the main view",
+		PrReviewUnviewedTitle:                "Unviewed",
+		PrReviewViewedTitle:                  "Viewed",
 		PrReviewNoDescription:                "This pull request has no description.",
+		PrReviewDescriptionSection:           "Description",
 		PrReviewReviewedMarker:               "[x]",
 		PrReviewUnreviewedMarker:             "[ ]",
 		PrReviewConversationTitle:            "Conversation",
 		PrReviewEnterDiffDescription:         "View diff",
+		PrListTitle:                          "Pull Requests",
+		PrOverviewTitle:                      "Overview",
+		PrChecksTitle:                        "Checks",
+		PrCommitsTitle:                       "Commits",
+		PrContentTitle:                       "PR Content",
+		PrActivityTitle:                      "PR Activity",
+		PrFilesChangedTitle:                  "Files Changed",
 		RemoteBranchesTitle:                  "Remote branches",
 		PatchBuildingTitle:                   "Main panel (patch building)",
 		InformationTitle:                     "Information",

@@ -73,6 +73,20 @@ type WindowArrangementArgs struct {
 	InSearchPrompt bool
 	// One of '' (not searching), 'Search: ', and 'Filter: '
 	SearchPrefix string
+	// Whether lazygit was booted into PR review mode, in which case the side
+	// section is the dedicated review layout (prList/prContent/prActivity) rather
+	// than the normal files/branches/commits windows.
+	IsReviewMode bool
+}
+
+// sideWindowNamesForArgs returns the side-panel windows for the current arrangement:
+// the dedicated PR review windows in review mode, otherwise the normal
+// (config-gated) set.
+func sideWindowNamesForArgs(args WindowArrangementArgs) []string {
+	if args.IsReviewMode {
+		return ReviewSideWindowNames()
+	}
+	return SideWindowNames(args.UserConfig)
 }
 
 func (self *WindowArrangementHelper) GetWindowDimensions(informationStr string, appStatus string) map[string]boxlayout.Dimensions {
@@ -101,6 +115,7 @@ func (self *WindowArrangementHelper) GetWindowDimensions(informationStr string, 
 		IsAnyModeActive:   self.modeHelper.IsAnyModeActive(),
 		InSearchPrompt:    repoState.InSearchPrompt(),
 		SearchPrefix:      searchPrefix,
+		IsReviewMode:      repoState.GetReviewMode(),
 	}
 
 	return GetWindowDimensions(args)
@@ -448,7 +463,7 @@ func sidePanelChildren(args WindowArrangementArgs) func(width int, height int) [
 				}
 			}
 
-			return lo.Map(SideWindowNames(args.UserConfig), func(window string, _ int) *boxlayout.Box {
+			return lo.Map(sideWindowNamesForArgs(args), func(window string, _ int) *boxlayout.Box {
 				return fullHeightBox(window)
 			})
 		} else if height >= 28 {
@@ -464,13 +479,13 @@ func sidePanelChildren(args WindowArrangementArgs) func(width int, height int) [
 				return defaultBox
 			}
 
-			return lo.Map(SideWindowNames(args.UserConfig), func(window string, _ int) *boxlayout.Box {
+			return lo.Map(sideWindowNamesForArgs(args), func(window string, _ int) *boxlayout.Box {
 				switch window {
 				case "status":
 					return &boxlayout.Box{Window: "status", Size: 3}
 				case "stash":
 					return accordionBox(getDefaultStashWindowBox(args))
-				default: // files, branches, commits
+				default: // files, branches, commits (and the review windows)
 					return accordionBox(&boxlayout.Box{Window: window, Weight: 1})
 				}
 			})
@@ -495,7 +510,7 @@ func sidePanelChildren(args WindowArrangementArgs) func(width int, height int) [
 			}
 		}
 
-		return lo.Map(SideWindowNames(args.UserConfig), func(window string, _ int) *boxlayout.Box {
+		return lo.Map(sideWindowNamesForArgs(args), func(window string, _ int) *boxlayout.Box {
 			return squashedSidePanelBox(window)
 		})
 	}

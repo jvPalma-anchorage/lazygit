@@ -3,14 +3,23 @@ package types
 import "github.com/jesseduffield/lazygit/pkg/gocui"
 
 type Views struct {
-	Status         *gocui.View
-	Submodules     *gocui.View
-	Files          *gocui.View
-	Branches       *gocui.View
-	Remotes        *gocui.View
-	PullRequests   *gocui.View
-	PrReview       *gocui.View
-	PrReviewDiff   *gocui.View
+	Status       *gocui.View
+	Submodules   *gocui.View
+	Files        *gocui.View
+	Branches     *gocui.View
+	Remotes      *gocui.View
+	PullRequests *gocui.View
+	PrReview     *gocui.View
+	PrReviewDiff *gocui.View
+
+	// PR review mode side windows (active only when booted into review mode).
+	// PrReview (above) is the Files-Changed tab inside the prContent window.
+	PrList         *gocui.View
+	PrOverview     *gocui.View
+	PrConversation *gocui.View
+	PrChecks       *gocui.View
+	PrCommits      *gocui.View
+
 	Worktrees      *gocui.View
 	Tags           *gocui.View
 	RemoteBranches *gocui.View

@@ -66,6 +66,11 @@ func (self *ContextMgr) Replace(c types.Context) {
 // landing on a hidden panel, rather than guarding each call site.
 func (self *ContextMgr) focusableSideContext(c types.Context) types.Context {
 	if c.GetKind() == types.SIDE_CONTEXT && !self.gui.isSideWindowVisible(c.GetWindowName()) {
+		// In PR review mode the normal Files window is itself suppressed, so the
+		// safe always-visible landing spot is the PR list, not Files.
+		if self.gui.isReviewMode {
+			return self.gui.State.Contexts.PrList
+		}
 		return self.gui.State.Contexts.Files
 	}
 

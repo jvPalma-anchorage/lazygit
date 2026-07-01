@@ -200,6 +200,7 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` <space> `` | Toggle reviewed |  |
 | `` t `` | Toggle unified / side-by-side diff |  |
 | `` d `` | View PR description |  |
+| `` R `` | Refresh pull request |  |
 | `` 0 `` | Focus main view |  |
 | `` / `` | Filtruj bieżący widok po tekście |  |
 | `` <space> `` | Zaznacz zakres w dół |  |

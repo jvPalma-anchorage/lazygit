@@ -15,8 +15,20 @@ func (gui *Gui) contextTree() *context.ContextTree {
 	return context.NewContextTree(contextCommon)
 }
 
+// sideWindowNames returns the visible side-panel windows for the current mode: the
+// dedicated PR review windows when booted into review mode, otherwise the normal
+// config-gated set. It reads the Gui-level isReviewMode flag (not gui.State) so it
+// is correct even when reached on the first config load (configureViewProperties),
+// which runs before the repo state exists.
+func (gui *Gui) sideWindowNames() []string {
+	if gui.isReviewMode {
+		return helpers.ReviewSideWindowNames()
+	}
+	return helpers.SideWindowNames(gui.c.UserConfig())
+}
+
 func (gui *Gui) isSideWindowVisible(windowName string) bool {
-	return lo.Contains(helpers.SideWindowNames(gui.c.UserConfig()), windowName)
+	return lo.Contains(gui.sideWindowNames(), windowName)
 }
 
 // redirectFocusFromHiddenSideWindow moves focus to the Files panel when the side
@@ -27,11 +39,17 @@ func (gui *Gui) isSideWindowVisible(windowName string) bool {
 func (gui *Gui) redirectFocusFromHiddenSideWindow() {
 	currentSideContext := gui.c.Context().CurrentSide()
 	if !gui.isSideWindowVisible(currentSideContext.GetWindowName()) {
-		gui.c.Context().Push(gui.State.Contexts.Files, types.OnFocusOpts{})
+		gui.c.Context().Push(gui.defaultSideContext(), types.OnFocusOpts{})
 	}
 }
 
 func (gui *Gui) defaultSideContext() types.Context {
+	// In PR review mode the normal side windows are suppressed, so the default
+	// (and Escape/pop fallback) side context is the PR list, never Files.
+	if gui.isReviewMode {
+		return gui.State.Contexts.PrList
+	}
+
 	if gui.State.Modes.Filtering.Active() {
 		commitsContext := gui.State.Contexts.LocalCommits
 		if gui.isSideWindowVisible(commitsContext.GetWindowName()) {

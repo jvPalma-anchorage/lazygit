@@ -122,7 +122,14 @@ func (self *PrReviewDiffController) submitComment(path string, startLine int, li
 				return nil
 			}
 			self.c.Toast(self.c.Tr.PrReviewCommentAdded)
-			tree.Reload()
+			// Reload the review data, then re-render the focused diff surface so the
+			// just-posted comment appears inline (the data reload alone does not
+			// repaint the active diff view, which caches its render).
+			diffCtx := self.context()
+			tree.ReloadThen(func() {
+				diffCtx.Invalidate()
+				self.c.PostRefreshUpdate(diffCtx)
+			})
 			return nil
 		})
 		return nil

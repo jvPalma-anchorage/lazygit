@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v3"
 )
 
 func TestMigrationOfRenamedKeys(t *testing.T) {
@@ -1183,4 +1184,55 @@ func TestPagerMigration(t *testing.T) {
 			assert.Equal(t, s.expectedChanges, changes.ToSliceFromOldest())
 		})
 	}
+}
+
+func TestReviewedFileKey(t *testing.T) {
+	assert.Equal(t, "owner/repo#42#pkg/gui/gui.go", ReviewedFileKey("owner/repo", 42, "pkg/gui/gui.go"))
+}
+
+func TestReviewedFileStateMatchesContent(t *testing.T) {
+	// Blob-OID identity: matches only the exact head blob; a changed blob (new
+	// commit) no longer matches, so the "viewed" mark auto-clears.
+	oidState := ReviewedFileState{FileOid: "abc123"}
+	assert.True(t, oidState.MatchesContent("abc123", "anyhash"))
+	assert.False(t, oidState.MatchesContent("def456", "anyhash"))
+
+	// Patch-hash fallback (blob-less cases).
+	hashState := ReviewedFileState{PatchHash: "h1"}
+	assert.True(t, hashState.MatchesContent("", "h1"))
+	assert.False(t, hashState.MatchesContent("", "h2"))
+
+	// No content identity stored → never matches (cannot be honored safely).
+	assert.False(t, ReviewedFileState{}.MatchesContent("x", "y"))
+}
+
+func TestReviewedFilesYamlRoundTrip(t *testing.T) {
+	// Proves the persisted viewed-state survives a state.yml write/read cycle (the
+	// disk-persistence mechanism), and that an old state.yml without the key loads as
+	// a nil map (backward compatibility).
+	state := getDefaultAppState()
+	state.ReviewedFiles["myorg/myrepo#7#src/foo.go"] = ReviewedFileState{
+		Repo: "myorg/myrepo", PR: 7, Path: "src/foo.go", Status: "M",
+		FileOid: "abc123", ViewedAt: 1750000000,
+	}
+
+	out, err := yaml.Marshal(state)
+	assert.NoError(t, err)
+	assert.Contains(t, string(out), "reviewedFiles:")
+	assert.Contains(t, string(out), "fileOid: abc123")
+
+	var loaded AppState
+	assert.NoError(t, yaml.Unmarshal(out, &loaded))
+	entry, ok := loaded.ReviewedFiles[ReviewedFileKey("myorg/myrepo", 7, "src/foo.go")]
+	assert.True(t, ok)
+	assert.Equal(t, "abc123", entry.FileOid)
+	assert.Equal(t, "M", entry.Status)
+	assert.True(t, entry.MatchesContent("abc123", ""))
+
+	// An old state.yml without the key → nil map, no panic.
+	var legacy AppState
+	assert.NoError(t, yaml.Unmarshal([]byte("recentRepos: []\n"), &legacy))
+	assert.Nil(t, legacy.ReviewedFiles)
+	_, ok = legacy.ReviewedFiles[ReviewedFileKey("x", 1, "y")] // read from nil map is safe
+	assert.False(t, ok)
 }

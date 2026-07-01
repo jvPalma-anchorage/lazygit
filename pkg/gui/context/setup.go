@@ -25,13 +25,46 @@ func NewContextTree(c *ContextCommon) *ContextTree {
 				Focusable:  true,
 			}),
 		),
-		Files:           NewWorkingTreeContext(c),
-		Submodules:      NewSubmodulesContext(c),
-		Menu:            NewMenuContext(c),
-		Remotes:         NewRemotesContext(c),
-		PullRequests:    NewPullRequestsContext(c),
-		PrReview:        NewPrReviewContext(c),
-		PrReviewDiff:    NewPrReviewDiffContext(c),
+		Files:        NewWorkingTreeContext(c),
+		Submodules:   NewSubmodulesContext(c),
+		Menu:         NewMenuContext(c),
+		Remotes:      NewRemotesContext(c),
+		PullRequests: NewPullRequestsContext(c),
+		PrReview:     NewPrReviewContext(c),
+		PrReviewDiff: NewPrReviewDiffContext(c),
+		// PR review workspace stub contexts. Phase 1 only proves the dedicated
+		// layout (own windows/tabs/panel numbers); the real data lands in later
+		// phases. prContent hosts the Overview tab here plus the rehomed PrReview
+		// (Files Changed) tab; prActivity hosts Conversation/Checks/Commits.
+		PrList: NewSimpleContext(
+			NewBaseContext(NewBaseContextOpts{
+				Kind:       types.SIDE_CONTEXT,
+				View:       c.Views().PrList,
+				WindowName: "prList",
+				Key:        PR_LIST_CONTEXT_KEY,
+				Focusable:  true,
+			}),
+		),
+		PrOverview: NewSimpleContext(
+			NewBaseContext(NewBaseContextOpts{
+				Kind:       types.SIDE_CONTEXT,
+				View:       c.Views().PrOverview,
+				WindowName: "prContent",
+				Key:        PR_OVERVIEW_CONTEXT_KEY,
+				Focusable:  true,
+			}),
+		),
+		PrConversation: NewPrConversationContext(c),
+		PrChecks: NewSimpleContext(
+			NewBaseContext(NewBaseContextOpts{
+				Kind:       types.SIDE_CONTEXT,
+				View:       c.Views().PrChecks,
+				WindowName: "prActivity",
+				Key:        PR_CHECKS_CONTEXT_KEY,
+				Focusable:  true,
+			}),
+		),
+		PrCommits:       NewPrCommitsContext(c),
 		Worktrees:       NewWorktreesContext(c),
 		RemoteBranches:  NewRemoteBranchesContext(c),
 		LocalCommits:    NewLocalCommitsContext(c),

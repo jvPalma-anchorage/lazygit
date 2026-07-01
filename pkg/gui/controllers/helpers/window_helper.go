@@ -31,6 +31,17 @@ func NewWindowHelper(c *HelperCommon, viewHelper *ViewHelper) *WindowHelper {
 func (self *WindowHelper) GetViewNameForWindow(window string) string {
 	viewName, ok := self.windowViewNameMap().Get(window)
 	if !ok {
+		// initialWindowViewNameMap seeds every context's window from Flatten(), so a
+		// missing entry should be impossible. Rather than panic — which in review
+		// mode could be tripped by a stray lookup of a now-suppressed normal window —
+		// log the anomaly and fall back to the first visible side window, which is
+		// always seeded (Files in normal mode, the PR list in review mode). This
+		// keeps the choke point from ever stranding focus on a hidden/unmapped panel.
+		self.c.Log.Errorf("no view mapped for window %q; falling back to the default side window", window)
+		fallback := self.SideWindows()[0]
+		if viewName, ok = self.windowViewNameMap().Get(fallback); ok {
+			return viewName
+		}
 		panic(fmt.Sprintf("Viewname not found for window: %s", window))
 	}
 
@@ -157,6 +168,17 @@ func SideWindowNames(userConfig *config.UserConfig) []string {
 	return windows
 }
 
+// ReviewSideWindowNames returns the side-panel windows for PR review mode, top to
+// bottom. Review mode owns its own windows (it does not borrow files/branches/etc.),
+// so the normal SideWindowNames set and its config gating do not apply here. The
+// status window is intentionally absent — review mode suppresses it.
+func ReviewSideWindowNames() []string {
+	return []string{"prList", "prContent", "prActivity"}
+}
+
 func (self *WindowHelper) SideWindows() []string {
+	if self.c.State().GetRepoState().GetReviewMode() {
+		return ReviewSideWindowNames()
+	}
 	return SideWindowNames(self.c.UserConfig())
 }

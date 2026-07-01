@@ -85,7 +85,14 @@ func (self *RefreshHelper) Refresh(options types.RefreshOptions) {
 
 	f := func() {
 		var scopeSet *set.Set[types.RefreshableView]
-		if len(options.Scope) == 0 {
+		if len(options.Scope) == 0 && self.c.State().GetRepoState().GetReviewMode() {
+			// PR review mode owns its own windows; the normal files/branches/commits/
+			// stash/status panels are suppressed, so the default full-refresh set would
+			// run git loaders for panels that are never shown (wasteful and racy).
+			// Explicitly-scoped refreshes still run, so later review phases can refresh
+			// their own data.
+			scopeSet = set.NewFromSlice([]types.RefreshableView{})
+		} else if len(options.Scope) == 0 {
 			// not refreshing staging/patch-building unless explicitly requested because we only need
 			// to refresh those while focused.
 			scopeSet = set.NewFromSlice([]types.RefreshableView{
@@ -747,6 +754,12 @@ func (self *RefreshHelper) refreshStashEntries() {
 
 // never call this on its own, it should only be called from within refreshCommits()
 func (self *RefreshHelper) refreshStatus() {
+	// The Status window is suppressed in PR review mode, so there is nothing to
+	// refresh and the branch/working-tree git calls it makes are pointless there.
+	if self.c.State().GetRepoState().GetReviewMode() {
+		return
+	}
+
 	self.c.Mutexes().RefreshingStatusMutex.Lock()
 	defer self.c.Mutexes().RefreshingStatusMutex.Unlock()
 

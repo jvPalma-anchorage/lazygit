@@ -7,7 +7,6 @@ import (
 	"github.com/jesseduffield/lazygit/pkg/config"
 	"github.com/jesseduffield/lazygit/pkg/gocui"
 	"github.com/jesseduffield/lazygit/pkg/gui/context"
-	"github.com/jesseduffield/lazygit/pkg/gui/controllers/helpers"
 	"github.com/jesseduffield/lazygit/pkg/theme"
 	"github.com/samber/lo"
 	"golang.org/x/exp/slices"
@@ -33,6 +32,11 @@ func (gui *Gui) orderedViewNameMappings() []viewNameMapping {
 		{viewPtr: &gui.Views.Submodules, name: "submodules"},
 		{viewPtr: &gui.Views.Worktrees, name: "worktrees"},
 		{viewPtr: &gui.Views.PrReview, name: "prReview"},
+		{viewPtr: &gui.Views.PrList, name: "prList"},
+		{viewPtr: &gui.Views.PrOverview, name: "prOverview"},
+		{viewPtr: &gui.Views.PrConversation, name: "prConversation"},
+		{viewPtr: &gui.Views.PrChecks, name: "prChecks"},
+		{viewPtr: &gui.Views.PrCommits, name: "prCommits"},
 		{viewPtr: &gui.Views.Files, name: "files"},
 		{viewPtr: &gui.Views.Tags, name: "tags"},
 		{viewPtr: &gui.Views.Remotes, name: "remotes"},
@@ -191,6 +195,11 @@ func (gui *Gui) configureViewProperties() {
 	gui.Views.Remotes.Title = gui.c.Tr.RemotesTitle
 	gui.Views.PullRequests.Title = gui.c.Tr.PullRequestsTitle
 	gui.Views.PrReview.Title = gui.c.Tr.PrReviewTitle
+	gui.Views.PrList.Title = gui.c.Tr.PrListTitle
+	gui.Views.PrOverview.Title = gui.c.Tr.PrOverviewTitle
+	gui.Views.PrConversation.Title = gui.c.Tr.PrReviewConversationTitle
+	gui.Views.PrChecks.Title = gui.c.Tr.PrChecksTitle
+	gui.Views.PrCommits.Title = gui.c.Tr.PrCommitsTitle
 	gui.Views.Worktrees.Title = gui.c.Tr.WorktreesTitle
 	gui.Views.Tags.Title = gui.c.Tr.TagsTitle
 	gui.Views.Files.Title = gui.c.Tr.FilesTitle
@@ -238,9 +247,21 @@ func (gui *Gui) configureViewProperties() {
 			{window: "commits", views: []*gocui.View{gui.Views.Commits, gui.Views.ReflogCommits}},
 			{window: "stash", views: []*gocui.View{gui.Views.Stash}},
 		}
+		// In review mode the side section is the dedicated review layout, so the
+		// [1]/[2]/[3] jump labels belong to its windows instead.
+		if gui.isReviewMode {
+			windowViews = []struct {
+				window string
+				views  []*gocui.View
+			}{
+				{window: "prList", views: []*gocui.View{gui.Views.PrList}},
+				{window: "prContent", views: []*gocui.View{gui.Views.PrOverview, gui.Views.PrReview}},
+				{window: "prActivity", views: []*gocui.View{gui.Views.PrConversation, gui.Views.PrChecks, gui.Views.PrCommits}},
+			}
+		}
 
 		windowIndexes := map[string]int{}
-		for i, window := range helpers.SideWindowNames(gui.c.UserConfig()) {
+		for i, window := range gui.sideWindowNames() {
 			windowIndexes[window] = i
 		}
 
@@ -271,6 +292,13 @@ func (gui *Gui) configureViewProperties() {
 		gui.Views.ReflogCommits.TitlePrefix = ""
 
 		gui.Views.Stash.TitlePrefix = ""
+
+		gui.Views.PrList.TitlePrefix = ""
+		gui.Views.PrOverview.TitlePrefix = ""
+		gui.Views.PrReview.TitlePrefix = ""
+		gui.Views.PrConversation.TitlePrefix = ""
+		gui.Views.PrChecks.TitlePrefix = ""
+		gui.Views.PrCommits.TitlePrefix = ""
 
 		gui.Views.Main.TitlePrefix = ""
 	}

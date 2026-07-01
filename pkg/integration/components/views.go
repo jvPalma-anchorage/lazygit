@@ -90,6 +90,26 @@ func (self *Views) PrReviewDiff() *ViewDriver {
 	return self.regularView("prReviewDiff")
 }
 
+func (self *Views) PrList() *ViewDriver {
+	return self.regularView("prList")
+}
+
+func (self *Views) PrOverview() *ViewDriver {
+	return self.regularView("prOverview")
+}
+
+func (self *Views) PrConversation() *ViewDriver {
+	return self.regularView("prConversation")
+}
+
+func (self *Views) PrChecks() *ViewDriver {
+	return self.regularView("prChecks")
+}
+
+func (self *Views) PrCommits() *ViewDriver {
+	return self.regularView("prCommits")
+}
+
 func (self *Views) RemoteBranches() *ViewDriver {
 	return self.regularView("remoteBranches")
 }

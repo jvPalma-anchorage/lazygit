@@ -117,7 +117,10 @@ The PR content window's `Files Changed` tab SHALL present the pull request's
 changed files as a collapsible tree (not a flat list). Moving the cursor onto a
 file SHALL render that file's diff in the main panel **through the user's
 configured diff pager**. Moving the cursor onto a directory node SHALL render the
-aggregate diff of all files under that directory.
+aggregate diff of all files under that directory. When a directory contains both
+viewed and unviewed files, the aggregate SHALL split the main panel — unviewed
+files' diffs on top, viewed files' diffs below — mirroring lazygit's unstaged/staged
+split, with the "viewed" mark playing the role of "staged".
 
 #### Scenario: file diff rendered through the configured pager
 
@@ -132,6 +135,12 @@ aggregate diff of all files under that directory.
 - **THEN** the main panel shows the combined diff of every changed file under that
   directory, not a "no changed files" message
 
+#### Scenario: directory with mixed viewed state splits the diff
+
+- **WHEN** a directory contains both viewed and unviewed files and the cursor is on it
+- **THEN** the main panel splits, showing the unviewed files' aggregate diff on top and
+  the viewed files' aggregate diff on the bottom
+
 #### Scenario: empty pull request
 
 - **WHEN** the pull request has no changed files
@@ -139,16 +148,31 @@ aggregate diff of all files under that directory.
 
 ### Requirement: Bounded rendering for large pull requests
 
-The system SHALL cap rendering of the changed-file tree and the diff preview at a
-maximum of 10 files or 2000 lines; beyond the cap it SHALL show a
-"truncated — N more" indication rather than rendering the entire diff or tree.
+The system SHALL show all of a pull request's changed files in the tree, matching
+lazygit's own uncapped Files/CommitFiles panels, and SHALL cap only pathologically
+huge pull requests (hundreds of files, where resolving per-file identity would stall),
+surfacing the hidden count when the cap applies. The diff preview SHALL be rendered
+through the user's pager via lazygit's incremental (lazy) streaming, which bounds each
+render and never stalls, so the diff keeps full pager (delta) rendering rather than
+being hard-truncated at a fixed line count (decision: keep delta; lazy streaming is the
+line guard; the file list is not artificially capped for normal PRs).
 
-#### Scenario: render cap on a large PR
+#### Scenario: normal PR shows every changed file
 
-- **WHEN** a selected file's diff exceeds 2000 lines, or a directory aggregates
-  more than 10 files
-- **THEN** the main panel renders up to the cap and shows a "truncated — N more"
-  note, and the UI does not hang
+- **WHEN** a pull request changes a normal number of files (e.g. tens)
+- **THEN** the tree lists every changed file, not an artificially truncated subset
+
+#### Scenario: render cap on a pathologically huge PR
+
+- **WHEN** a pull request changes more files than the safety cap
+- **THEN** the tree shows the capped subset and surfaces a "first N; M more hidden"
+  subtitle, and the UI does not hang
+
+#### Scenario: large single-file or aggregate diff
+
+- **WHEN** a selected file's diff (or a directory's aggregate diff) is very large
+- **THEN** the main panel streams it incrementally through the pager without stalling,
+  and the directory aggregate is bounded by the 10-file tree cap
 
 ### Requirement: Toggle and persist a content-invalidated viewed state
 

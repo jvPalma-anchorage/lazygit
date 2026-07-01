@@ -235,10 +235,103 @@ func TestParsePRChangedFiles(t *testing.T) {
 	assert.Equal(t, "added", files[1].Status)
 }
 
+// TestParsePRReviewDataLocalRefFields covers the Phase 2 query extension (2.2): the
+// base OID and the per-side repository URLs (which differ for a fork head) that the
+// local-ref fetch needs. A fork PR has distinct base/head repository URLs.
+func TestParsePRReviewDataLocalRefFields(t *testing.T) {
+	json := `{
+	  "data": { "repository": { "pullRequest": {
+	    "id": "PR_1", "number": 5, "title": "t", "state": "OPEN", "isDraft": false,
+	    "baseRefName": "main", "headRefName": "feature",
+	    "headRefOid": "headoid111", "baseRefOid": "baseoid222",
+	    "baseRepository": { "url": "https://github.com/owner/repo" },
+	    "headRepository": { "url": "https://github.com/forkuser/repo" },
+	    "author": { "login": "forkuser" },
+	    "comments": { "pageInfo": { "hasNextPage": false }, "nodes": [] },
+	    "reviewRequests": { "pageInfo": { "hasNextPage": false }, "nodes": [] },
+	    "latestReviews": { "pageInfo": { "hasNextPage": false }, "nodes": [] },
+	    "reviews": { "pageInfo": { "hasNextPage": false }, "nodes": [] },
+	    "reviewThreads": { "pageInfo": { "hasNextPage": false }, "nodes": [] }
+	  } } }
+	}`
+	result, err := parsePRReviewData([]byte(json))
+	assert.NoError(t, err)
+	assert.Equal(t, "headoid111", result.HeadRefOid)
+	assert.Equal(t, "baseoid222", result.BaseRefOid)
+	assert.Equal(t, "https://github.com/owner/repo", result.BaseRepoURL)
+	assert.Equal(t, "https://github.com/forkuser/repo", result.HeadRepoURL)
+}
+
 func reviewerLogins(result *PullRequestReviewData) []string {
 	logins := make([]string, 0, len(result.Reviewers))
 	for _, r := range result.Reviewers {
 		logins = append(logins, r.Login)
 	}
 	return logins
+}
+
+func TestParsePRReviewDataCapturesReviewBodies(t *testing.T) {
+	json := `{
+	  "data": { "repository": { "pullRequest": {
+	    "id": "PR_1", "number": 5, "title": "t", "state": "OPEN", "isDraft": false,
+	    "baseRefName": "main", "headRefName": "feature", "headRefOid": "h", "baseRefOid": "b",
+	    "author": { "login": "author" },
+	    "comments": { "pageInfo": { "hasNextPage": false }, "nodes": [] },
+	    "reviewRequests": { "pageInfo": { "hasNextPage": false }, "nodes": [] },
+	    "latestReviews": { "pageInfo": { "hasNextPage": false }, "nodes": [
+	      { "author": { "login": "alice" }, "state": "CHANGES_REQUESTED", "submittedAt": "2026-01-01" }
+	    ] },
+	    "reviews": { "pageInfo": { "hasNextPage": false }, "nodes": [
+	      { "author": { "login": "alice" }, "state": "CHANGES_REQUESTED", "submittedAt": "2026-01-01", "body": "please fix the naming" },
+	      { "author": { "login": "bob" }, "state": "APPROVED", "submittedAt": "2026-01-02", "body": "" }
+	    ] },
+	    "reviewThreads": { "pageInfo": { "hasNextPage": false }, "nodes": [] }
+	  } } }
+	}`
+	result, err := parsePRReviewData([]byte(json))
+	assert.NoError(t, err)
+	// The non-empty review body is captured; the empty-body approval is skipped.
+	assert.Len(t, result.Reviews, 1)
+	assert.Equal(t, "alice", result.Reviews[0].Author)
+	assert.Equal(t, "CHANGES_REQUESTED", result.Reviews[0].State)
+	assert.Equal(t, "please fix the naming", result.Reviews[0].Body)
+}
+
+func TestParsePRReviewDataUpgradesPendingCommenters(t *testing.T) {
+	// jvpalma is a requested reviewer (PENDING) who left an inline comment → COMMENTED.
+	// tiago is requested (PENDING) with no comment → stays PENDING. jenny APPROVED and
+	// also commented → stays APPROVED (stronger state wins).
+	json := `{
+	  "data": { "repository": { "pullRequest": {
+	    "id": "PR_1", "number": 5, "title": "t", "state": "OPEN", "isDraft": false,
+	    "baseRefName": "main", "headRefName": "feature", "headRefOid": "h", "baseRefOid": "b",
+	    "author": { "login": "author" },
+	    "comments": { "pageInfo": { "hasNextPage": false }, "nodes": [] },
+	    "reviewRequests": { "pageInfo": { "hasNextPage": false }, "nodes": [
+	      { "requestedReviewer": { "__typename": "User", "login": "jvpalma" } },
+	      { "requestedReviewer": { "__typename": "User", "login": "tiago" } }
+	    ] },
+	    "latestReviews": { "pageInfo": { "hasNextPage": false }, "nodes": [
+	      { "author": { "login": "jenny" }, "state": "APPROVED", "submittedAt": "2026-01-01" }
+	    ] },
+	    "reviews": { "pageInfo": { "hasNextPage": false }, "nodes": [] },
+	    "reviewThreads": { "pageInfo": { "hasNextPage": false }, "nodes": [
+	      { "id": "T1", "isResolved": false, "isOutdated": false, "isCollapsed": false,
+	        "path": "a.go", "line": 5, "startLine": 5, "originalLine": 5, "diffSide": "RIGHT",
+	        "comments": { "pageInfo": { "hasNextPage": false }, "nodes": [
+	          { "databaseId": 1, "author": { "login": "jvpalma" }, "body": "nit", "createdAt": "x", "diffHunk": "@@", "originalLine": 5, "line": 5, "replyTo": null },
+	          { "databaseId": 2, "author": { "login": "jenny" }, "body": "ok", "createdAt": "x", "diffHunk": "@@", "originalLine": 5, "line": 5, "replyTo": null }
+	        ] } }
+	    ] }
+	  } } }
+	}`
+	result, err := parsePRReviewData([]byte(json))
+	assert.NoError(t, err)
+	state := map[string]string{}
+	for _, r := range result.Reviewers {
+		state[r.Login] = r.State
+	}
+	assert.Equal(t, "COMMENTED", state["jvpalma"], "a PENDING reviewer who commented becomes COMMENTED")
+	assert.Equal(t, "PENDING", state["tiago"], "a PENDING reviewer with no comment stays PENDING")
+	assert.Equal(t, "APPROVED", state["jenny"], "an APPROVED reviewer who commented stays APPROVED")
 }

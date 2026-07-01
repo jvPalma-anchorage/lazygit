@@ -199,3 +199,63 @@ func TestRenderReviewConversation_ReviewersAndComments(t *testing.T) {
 	assert.Contains(t, out, "@dave")
 	assert.Contains(t, out, "ship it")
 }
+
+func TestRenderReviewerDetail_FiltersToReviewer(t *testing.T) {
+	reviewer := models.Reviewer{Login: "alice", State: "CHANGES_REQUESTED"}
+	reviews := []models.Review{
+		{Author: "alice", State: "CHANGES_REQUESTED", Body: "needs_work"},
+		{Author: "bob", State: "APPROVED", Body: "bob_review"},
+	}
+	threads := []models.ReviewThread{
+		{
+			Path: "a.go", Line: 5, IsResolved: false,
+			Comments: []models.ReviewComment{
+				{Author: "alice", Body: "alice_inline"},
+				{Author: "bob", Body: "bob_reply"},
+			},
+		},
+		{
+			Path: "b.go", Line: 9, IsResolved: true,
+			Comments: []models.ReviewComment{{Author: "bob", Body: "bob_only"}},
+		},
+	}
+	issueComments := []models.IssueComment{
+		{Author: "alice", Body: "alice_issue"},
+		{Author: "bob", Body: "bob_issue"},
+	}
+
+	out := RenderReviewerDetail(testTr(), reviewer, reviews, threads, issueComments, 80, nil)
+
+	// The selected reviewer's own contributions appear.
+	assert.Contains(t, out, "@alice")
+	assert.Contains(t, out, "CHANGES_REQUESTED")
+	assert.Contains(t, out, "needs_work")
+	assert.Contains(t, out, "a.go:5")
+	assert.Contains(t, out, "alice_inline")
+	assert.Contains(t, out, "alice_issue")
+
+	// Other reviewers' contributions are filtered out.
+	assert.NotContains(t, out, "bob_review")
+	assert.NotContains(t, out, "bob_reply")
+	assert.NotContains(t, out, "bob_only")
+	assert.NotContains(t, out, "b.go") // alice did not comment on b.go
+	assert.NotContains(t, out, "bob_issue")
+}
+
+func TestRenderReviewerDetail_NoActivity(t *testing.T) {
+	reviewer := models.Reviewer{Login: "carol", State: "PENDING"}
+	out := RenderReviewerDetail(testTr(), reviewer, nil, nil, nil, 80, nil)
+	assert.Contains(t, out, "@carol")
+	assert.Contains(t, out, testTr().PrReviewReviewerNoActivity)
+}
+
+func TestRenderReviewerDetail_ResolvedAndOutdatedShowsBoth(t *testing.T) {
+	reviewer := models.Reviewer{Login: "alice", State: "COMMENTED"}
+	threads := []models.ReviewThread{{
+		Path: "a.go", Line: 5, IsResolved: true, IsOutdated: true,
+		Comments: []models.ReviewComment{{Author: "alice", Body: "note"}},
+	}}
+	out := RenderReviewerDetail(testTr(), reviewer, nil, threads, nil, 80, nil)
+	assert.Contains(t, out, testTr().PrReviewResolvedBadge)
+	assert.Contains(t, out, testTr().PrReviewOutdatedBadge)
+}
