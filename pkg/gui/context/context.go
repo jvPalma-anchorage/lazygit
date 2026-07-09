@@ -112,10 +112,10 @@ type ContextTree struct {
 	PullRequests                *PullRequestsContext
 	PrReview                    *PrReviewContext
 	PrReviewDiff                *PrReviewDiffContext
-	PrList                      types.Context
+	PrList                      *PrListContext
 	PrOverview                  types.Context
 	PrConversation              *PrConversationContext
-	PrChecks                    types.Context
+	PrChecks                    *PrChecksContext
 	PrCommits                   *PrCommitsContext
 	Worktrees                   *WorktreesContext
 	Submodules                  *SubmodulesContext

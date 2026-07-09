@@ -1,17 +1,35 @@
 # Tasks
 
-Dependency-ordered, following the codex+copilot-agreed phasing. **Phases 1–5 are
-v1** (ship the real "mirror stage/unstage" review of a single launched PR).
-**Phases 6–8 are deferred** fast-follows. Each phase must compile and stay green
-on its own (AGENTS.md). The order is deliberate: nothing renders until the layout
-foundation (P1) and the read model (P2) exist.
+Dependency-ordered, following the codex+copilot-agreed phasing. **Phases 1–6 are
+done** (plus the post-6 fixes below). **Phases 7–12 are the live backlog**, driven
+by real-PR dogfooding (`anchorlabsinc/anchorage`): performance/cache (P9) and the
+default-tab fix (P10) are the highest-pain items. Each phase must compile and stay
+green on its own (AGENTS.md).
 
 Session-1 decisions (design.md D1.1–D1.7) are folded in: local-ref spine,
 **project-agnostic** identity (no hardcoded paths), prune-on-boot, blob-OID
-viewed-state, fail-fast boot, v1=phases 1–5, Status suppressed + render cap (≤10
-files / 2000 lines). Data shapes and contracts live in `docs/data-shapes.md`,
+viewed-state, fail-fast boot. The original ≤10-file render cap (D1.7) was
+**removed** in post-6 work — the tree shows every file (blob OIDs resolve in one
+batched `ls-tree`); only the diff render is bounded, by the pager's lazy
+streaming. Data shapes and contracts live in `docs/data-shapes.md`,
 `docs/review-fetch-command.md`, `docs/viewed-state-schema.md`, and
 `docs/REFERENCES.md` — read those before implementing the relevant task.
+
+## Post-6 fixes (landed unplanned, from real-PR dogfooding — all done)
+
+- [x] P6.a Remove the 10-file tree cap; batch blob-OID resolution via one
+  `git ls-tree` per side (`ReviewFileBlobOids`); tree is never truncated.
+- [x] P6.b Auto-hide generated files (lockfiles, `*.generated.*`, `*.pb.go`,
+  `*.snap`, minified) with `G` toggle + hidden-count subtitle.
+- [x] P6.c Left/Right arrows cycle review side panels (attach
+  `SideWindowController` to the review contexts).
+- [x] P6.d Reviewer-state fix: PENDING reviewer with any inline/PR-body comment
+  upgrades to COMMENTED (`upgradePendingCommenters`).
+- [x] P6.e Folder diff splits unviewed (main) / viewed (secondary), mirroring
+  the unstaged/staged split.
+- [x] P6.f Overview tab v1: title+number, state+author, `base ← head`,
+  description (`RenderPrOverview` + `PrOverviewController`); query now captures
+  author + branch names.
 
 ## 1. Layout foundation (review-mode owns its windows/tabs/panel numbers)
 
@@ -78,7 +96,8 @@ files / 2000 lines). Data shapes and contracts live in `docs/data-shapes.md`,
   dir path → aggregate diff (fixes #1). Async (`OnWorker`) + loading state.
 - [x] 2.7 Integration test (fixture/seam): selecting a file shows a delta-rendered
   diff; selecting a folder shows the aggregate (not "no changed files").
-- [x] 2.8 Render cap (D1.7): cap the files tree at ≤10 files and surface the hidden
+- [x] 2.8 ~~Render cap~~ **Superseded by P6.a** (cap removed; tree never
+  truncated). Original: cap the files tree at ≤10 files and surface the hidden
   count as a subtitle; add the empty-PR state. The diff preview keeps full delta
   rendering via lazygit's incremental pager streaming (which bounds each render and
   never stalls) rather than a hard 2000-line truncation — Session-2 decision: keep
@@ -132,7 +151,7 @@ files / 2000 lines). Data shapes and contracts live in `docs/data-shapes.md`,
 - [x] 5.3 Integration test: the Commits tab lists exactly `base..head`, drill-in
   shows that commit's files.
 
-## 6. Conversation display (DEFERRED — fast-follow)
+## 6. Conversation display (DONE)
 
 > Ask 3.4.1 display half (reviewers, states, threads, PR-body comments).
 
@@ -142,23 +161,29 @@ files / 2000 lines). Data shapes and contracts live in `docs/data-shapes.md`,
   per-thread resolved/unresolved/outdated state, plus PR-body issue comments;
   bodies via glow.
 
-## 7. Comment submission — grouped review (DEFERRED — fast-follow)
+## 7. Comment submission — grouped review (BACKLOG)
 
 > Ask 3.4.1 write half. Standalone posting already lands in P3.4.
 
-- [ ] 7.1 Accumulate per-file pending comments in a session and submit one PR
+- [x] 7.1 Accumulate per-file pending comments in a session and submit one PR
   review (`gh api … pulls/{n}/reviews` with `comments[]` + body + event
   comment/approve/request-changes).
 
-## 8. gh-dash PR list + checks tree (DEFERRED — last)
+## 8. gh-dash PR list + checks tree (BACKLOG — panel-1 + Checks tab)
 
 > Asks 3.2 and 3.4.2 — the two largest sub-features; ship value before these.
+> Re-flagged in dogfooding (2026-07): panel-1 has NO logic and Checks is NOT
+> connected; 8.0 gives panel-1 minimal value before the full gh-dash list.
 
-- [ ] 8.1 Parse `~/.config/gh-dash/config.yml` `prSections[]` (honor
+- [x] 8.0 Minimal PR list: window `[1]` shows the launched PR as a selected row
+  (number, title, state) instead of an empty stub; selecting it is a no-op (it is
+  already loaded). Unblocks the spec's "PR list window shows the launched pull
+  request" requirement without waiting for gh-dash sections.
+- [x] 8.1 Parse `~/.config/gh-dash/config.yml` `prSections[]` (honor
   `GH_DASH_CONFIG`/XDG; default set when absent). Feed sections as data to the
   `prList` window (not inside `viewTabMap()`); run each `filters` via
   `gh search prs --json`. Selecting a PR loads it (triggers the P2 fetch).
-- [ ] 8.2 Checks tree: normalize `gh api …/check-runs` + workflow `…/jobs` into one
+- [x] 8.2 Checks tree: normalize `gh api …/check-runs` + workflow `…/jobs` into one
   `filetree` node model (parent jobs, child steps). Sort by importance
   (failure › cancelled › interrupted › pending › success › skipped) then
   last-updated desc; skipped last. `enter` renders logs via `gh run view <id>
@@ -166,6 +191,126 @@ files / 2000 lines). Data shapes and contracts live in `docs/data-shapes.md`,
 - [ ] 8.3 (optional) Focus-inverts-split (80/20 ↔ 20/80) via the review layout
   weights in `window_arrangement_helper.go`; side-by-side via `delta
   --side-by-side` toggle (no bespoke renderer).
+
+## 9. Per-PR filesystem cache + boot performance
+
+> Dogfooding: boot on `anchorlabsinc/anchorage` (huge monorepo) is painfully slow
+> even for a small PR. Diagnosis: boot is fully serial — `gh api graphql` →
+> `git fetch <url> <oid>` for base+head (re-fetched EVERY boot, even when
+> `refs/lazygit-review/<pr>/*` already point at the right OIDs; URL-fetch forces
+> full negotiation against the monorepo) → merge-base → name-status diff →
+> 2× ls-tree → per-file fallback diffs. The cache is the architecture fix; the
+> ref-fetch skip is the single biggest win.
+
+- [x] 9.1 Cache store: snapshot files under
+  `<lazygit-config-dir>/prReview/{owner}/{repo}/{number}/` (resolve via lazygit's
+  config-dir helper, not a hardcoded `~/.config`), one JSON file per data type —
+  `meta.json` (PR data + conversation), `files.json` (changed files + blob OIDs),
+  `checks.json` (reserved for P8.2) — each wrapped in
+  `{fetchedAt, headRefOid, payload}`. Atomic write (temp+rename); corrupt/missing
+  snapshots are treated as cache-miss, never an error.
+- [x] 9.2 Ref-fetch skip: before fetching, compare
+  `git rev-parse refs/lazygit-review/<pr>/{base,head}` to the target OIDs from the
+  read query; skip the network fetch when they already match. Log timings around
+  each boot stage so before/after is measurable.
+- [x] 9.3 Warm boot: when snapshots exist, render the whole workspace from cache
+  immediately (no network on the render path), then revalidate in the background —
+  one cheap `gh api graphql` for `updatedAt`/`headRefOid`; re-fetch only the data
+  types whose upstream changed and rewrite their snapshots. `R` (refresh) bypasses
+  the cache entirely.
+- [x] 9.4 Tests: unit tests for the snapshot store (roundtrip, corrupt file =
+  miss, atomicity); integration test proving a warm boot renders with zero
+  `gh`/network invocations (fixture-seeded cache) and that refresh rewrites
+  snapshots.
+
+## 10. Activity default tab + reviewer ordering
+
+> Dogfooding: panel `[3]` visually defaults to Commits. ROOT CAUSE FOUND: gocui
+> draws overlapping tab views in creation order and routes mouse clicks to the
+> topmost; lazygit's convention is that a window's DEFAULT tab view is declared
+> LAST in `orderedViewNameMappings` (`views.go` — cf. `Tags, Remotes,
+> PullRequests, Branches`). Our stack declares `PrConversation, PrChecks,
+> PrCommits`, so PrCommits is on top. Focus-based test assertions don't catch
+> z-order — the new test must assert the topmost view.
+
+- [x] 10.1 Reorder `orderedViewNameMappings` so each review window's default tab
+  view is last in its stack (`PrCommits, PrChecks, PrConversation`; keep
+  `PrOverview` before `PrReview` for prContent). Integration test asserts the
+  TOPMOST view in `prActivity` on fresh boot is Conversation (z-order, not just
+  focus), including after the async PR load completes.
+- [x] 10.2 Current-user-first reviewer list: resolve the authenticated login once
+  (`gh api user --jq .login`, cached in the P9 cache dir), and sort the
+  Conversation reviewer list with the own-login row first (stable order for the
+  rest). Unit test the sort; integration test with a fixture reviewer matching
+  the seeded login.
+
+## 11. Inline review-thread interaction (reply + resolve)
+
+> Dogfooding: threads render inline in the diff surface but cannot be selected,
+> replied to, or resolved.
+
+- [x] 11.1 Make inline threads selectable in the parsed-diff surface: thread
+  blocks become navigable anchors (cursor lands on a thread, distinct highlight);
+  the row→line map skips thread rows for comment-range selection.
+- [x] 11.2 Reply: `enter`/`r` on a selected thread opens the comment editor and
+  posts via REST `pulls/{n}/comments` with `in_reply_to`; refresh the thread
+  display on success; toast + preserve input on failure.
+- [x] 11.3 Resolve/unresolve: a key on a selected thread calls the GraphQL
+  `resolveReviewThread` / `unresolveReviewThread` mutation (thread node ID is
+  already captured); update the thread's badge in place.
+- [x] 11.4 Tests: unit tests for thread-anchor navigation mapping; integration
+  test (fixture) for reply posting and resolve toggling through the command seam.
+
+## 12. Overview v2 — labels, heading, timeline
+
+> Dogfooding ask: full overview layout (see spec "PR overview"): heading, state
+> line, branches, label chips in GitHub colors, separators, description, then an
+> oldest-first timeline (issue comments + submitted review summaries, bots
+> included, with timestamps). Bot review comments are currently invisible
+> anywhere in the UI — the timeline is where they surface.
+
+- [x] 12.1 Extend the read query + `PullRequestReviewData` with
+  `labels(first:20){ name color }` and ensure issue-comment `createdAt` /
+  review `submittedAt` are captured (they are) and carried into the timeline.
+- [x] 12.2 Renderer: prominent number+title heading (bold/underline — a real H1
+  needs glow, use it when available), state+author, `base ← head`, label chips
+  (hex → truecolor background via `style.New().SetBg`, readable fg), horizontal
+  separators, markdown description, then the merged timeline sorted ascending by
+  timestamp with `@author · <time>` headers. Unit tests: layout order, label
+  colors, chronological merge incl. bot entries, empty-block omissions.
+- [x] 12.3 Integration test: overview shows chips + timeline for a fixture with
+  labels, a bot comment, and a human review; assert order (oldest first).
+
+## 13. PR list as a section-tabbed browser (panel-1 redesign)
+
+> Dogfooding: 8.1 rendered gh-dash sections as inline header rows in one list. The
+> desired model is a gh-dash-style BROWSER: the sections are the panel's TABS, the
+> list shows only the active tab's PRs, hovering a PR previews its Overview in
+> panel-0, and panel-1 shrinks out of the way when unfocused. The Overview leaves
+> panel-2 entirely (panel-2 becomes just Files Changed).
+
+- [x] 13.1 Sections become panel-1 TABS: PrListContext holds the gh-dash sections +
+  an active-section index; the list renders only the active section's PRs. Drive
+  `PrList.Tabs`/`TabIndex` dynamically (remove prList from the static `viewTabMap`)
+  and bind `[`/`]` in the controller to change the active section. The launched PR
+  stays reachable (a "Current" section, or pinned atop every section).
+- [x] 13.2 Hover-preview: selecting a PR renders its Overview into panel-0 (main) —
+  the same renderer moved from the Overview tab. Fetch the hovered PR's data
+  on-select (debounced; served from the per-PR snapshot cache when warm; a light
+  header from the list row until the full data arrives) so browsing is responsive
+  on a large monorepo.
+- [x] 13.3 Keys: `enter` on a PR focuses panel-0 (main) so the user can scroll the
+  overview; `Esc` returns to the list. `SPACE` starts the review of that PR
+  (Retarget + load panels 2/3). Arrow keys move the selection.
+- [x] 13.4 Remove the Overview tab from panel-2: prContent hosts only Files Changed;
+  drop `prOverview` from `viewTabMap` and retire its context/controller (the
+  renderer now lives behind panel-1's hover-preview).
+- [x] 13.5 Accordion: panel-1 collapses to a single line when it is not the focused
+  side window (giving panels 2 and 3 the height), and expands when focused —
+  special-cased in `window_arrangement_helper.go`.
+- [x] 13.6 Integration tests: sections render as tabs and `]` switches them showing
+  a different PR set; hovering a PR shows its overview in main; `SPACE` retargets;
+  `enter` focuses main; panel-1 is one line when unfocused.
 
 ## Validation (every phase)
 

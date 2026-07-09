@@ -116,3 +116,141 @@ Known doc gaps to capture before the relevant phase (flagged by the docs agent):
 ### Status: ready for implementation
 All Critical/Important findings resolved. v1 scope locked (phases 1–5). Begin with
 `/opsx:apply pr-review-workspace 1.*` (layout foundation).
+
+## Session 3 (2026-07-07) — dogfooding sync (real anchorage PRs)
+
+Reported on `llg-dev anchorlabsinc/anchorage 217274`: horrible boot performance;
+inline threads not selectable (no reply/resolve); panel `[3]` visually defaults
+to Commits; Overview too thin (wants heading/labels/timeline layout); Checks tab
+and panel `[1]` still stubs. User directive: per-PR filesystem cache at
+`~/.config/lazygit/prReview/{owner}/{repo}/{number}` with per-data-type
+last-updated snapshots.
+
+Diagnoses recorded in design.md:
+- **D3.2 (root cause found)**: default-tab defect is gocui z-order —
+  `orderedViewNameMappings` must declare the default tab view LAST per window
+  stack; ours has PrCommits last → drawn on top + swallows clicks. Focus-based
+  tests can't see it; must assert topmost view.
+- **D3.1**: boot is fully serial and re-fetches review refs by URL every boot
+  even when they already point at the right OIDs — dominant cost on a monorepo.
+  Cache + ref-fetch-skip is the fix.
+
+Spec updated: Overview v2 layout requirement (heading/labels/separator/
+description/timeline oldest-first incl. bots); Conversation un-deferred + state
+of the commenting-reviewer fix; new requirements for default tab + self-first
+reviewer row, inline-thread interaction, and the per-PR cache; current-state
+notes on the stub PR list; generated-file hiding scenario. Tasks: post-6 fixes
+logged as done (P6.a–P6.f); new phases 9 (cache/perf), 10 (default tab +
+self-first), 11 (thread reply/resolve), 12 (overview v2); task 8.0 (minimal
+launched-PR row) added; 2.8 marked superseded.
+
+## Session 4 (2026-07-07) — full backlog implemented in one pass (offline-worker)
+
+Implemented phases 7–12 end to end, all tested, no git writes, all GitHub write
+paths behind seams (nothing left this machine):
+
+- **P10**: z-order reorder in `orderedViewNameMappings` (default tab last per
+  review window stack) + `TestReviewTabViewZOrder`; `viewer{login}` captured;
+  Conversation lists the authenticated user first.
+- **P9**: `ReviewSnapshotStore` (`<configdir>/prReview/{owner}/{repo}/{number}/`,
+  atomic, corrupt=miss), warm boot from snapshots (validated against head+base
+  OIDs AND the local refs), background revalidation, `R` bypass, ref-fetch skip
+  when refs already at wanted OIDs, boot-stage timing logs. Warm-boot integration
+  test proves zero-network render.
+- **P12**: Overview v2 — `#N - title` heading, state+author, `base ← head`, label
+  chips in GitHub colors (luminance-picked fg), separators, description, oldest-
+  first timeline (issue comments + review summaries, bots included, timestamps).
+  `labels(first:100)` + pageInfo folded into Truncated.
+- **P11**: thread blocks are selectable anchors (RowThreadID parallel map; plain
+  moves land on threads, range-extends skip them); `c` on a thread replies (REST
+  replies endpoint), `t` toggles resolve (GraphQL mutations); failures toast,
+  queue/input never dropped.
+- **P7**: `C` queues pending comments; `S` submits ONE review (menu:
+  comment/approve/request-changes + optional body) via `pulls/{n}/reviews`
+  `--input -`; single-line comments omit start_line; queue cleared only on
+  success.
+- **P8.0/8.1**: PR list window — launched PR under "Current", gh-dash
+  `prSections` parsed (env/XDG/home, defaults on error), `gh search prs` per
+  section, Enter retargets the whole workspace (`Retarget` resets all per-PR
+  state). Sections are list data, not tabs (spec updated to match).
+- **P8.2**: checks tree — `gh pr checks --repo` normalized, importance sort
+  (fail>cancel>pending>pass>skipping, recency within bucket), workflow parents
+  collapse/expand, Enter renders logs via `gh run view --repo … --log` pty with
+  FORCE_COLOR.
+
+Multi-agent verification: codex found 4 real issues, 3 fixed (in-flight load vs
+Retarget → loadGeneration guard; checks not repo-scoped → --repo everywhere;
+checks async apply unguarded → target comparison) and 1 documented as designed
+(pending comments survive head-move; 422 surfaces at submit, queue retained).
+An earlier codex pass caught the cache base-OID pairing hole and label
+truncation — both fixed. antigravity (`agy`) remains unusable headless (needs a
+TTY). Full integration suite (entire repo) green in 12s; lint 0 issues.
+
+Debug war story: the PR-list panel initially crashed every review boot with
+`index out of range` in the column aligner — display strings must have UNIFORM
+column counts across rows (section headers padded with empty cells). The panic
+was masked by a `close of closed channel` in the test harness's failure path,
+which cost a round of misdirected probing.
+
+### Session 4 addendum — verification-fleet findings, resolutions
+
+An 8-verifier workflow (one adversarial read-only agent per requirement cluster) +
+codex reviewed the full diff. Fixed:
+- worker-thread `self.data` write eliminated (`loadLocalRefModel` now takes the
+  data + PR number as parameters; `applyCachedSnapshots` takes the captured
+  target) — no context field is written off the UI thread anymore;
+- a failed background revalidation no longer clobbers a successful warm render
+  (toast + keep cached view; same for the checks tab);
+- checks are now a cached data type (`checks.json`, warm-read + always
+  revalidate, freshest-wins) — the warm-boot test seeds and asserts it;
+- checks tree grouping made contiguous per workflow (the importance sort could
+  interleave workflows and scatter children under wrong parents) via pure
+  `groupChecksRows` + unit tests;
+- failed reply/comment writes re-open the prompt with the typed body intact
+  (spec: "input is not lost");
+- label chips validate hex before trusting gookit (6-char garbage colors fall
+  back to a plain chip);
+- PR list's launched row title refreshes once the PR data arrives;
+- test gaps closed: labels-truncation → Truncated, trailing-thread RowThreadID
+  tagging, interleaved checks grouping.
+
+Accepted residuals (documented, deliberate):
+- `LAZYGIT_PR_REVIEW_OFFLINE` skips revalidation when a warm cache exists — a
+  test seam that doubles as an airplane mode; inert unless explicitly set.
+- Revalidation always re-runs the GraphQL fetch (the cheap part); only the git
+  ref fetch is conditionally skipped. The spec's `updatedAt`-gated per-type
+  refetch is a future optimization.
+- Body-less submitted reviews (bare approvals) don't appear as timeline entries;
+  their state still shows in the reviewer list badges.
+- Pending grouped-review comments survive a Reload; if the head moved and a line
+  no longer anchors, GitHub's 422 surfaces at submit and the queue is retained.
+- copilot review hung with no output and was killed; agy needs a TTY (unusable
+  headless). codex + the verifier workflow provided the independent review.
+
+### Session 5 (2026-07-07) — Phase 13: PR list becomes a section-tabbed browser
+
+Dogfooding correction: 8.1 rendered gh-dash sections as inline header rows in one
+list; the wanted model is a gh-dash-style browser. Implemented (all tested):
+- **13.1** sections are window [1]'s TABS — PrListContext holds sections +
+  activeSection, drives `PrList.Tabs`/`TabIndex` dynamically (prList removed from
+  the static `viewTabMap` so the layout loop doesn't overwrite them), and the
+  controller binds `[` / `]` (which shadow the no-op global tab handler) to cycle
+  sections. The launched PR is pinned as a "Current" first section.
+- **13.2** hovering a PR previews its Overview in panel-0; the current PR reuses
+  the live review data, other PRs fetch on-select (guarded, cached in
+  `overviewData`) with a light header until the data lands.
+- **13.3** `enter` pushes the main context (scroll the overview), Esc returns;
+  `SPACE` retargets the workspace at the PR (loads panels 2/3).
+- **13.4** the Overview left panel-2 entirely — prContent now has only Files
+  Changed; `prOverview` dropped from `viewTabMap` + the window's view stack (the
+  context/controller remain wired but unreachable, harmless).
+- **13.5** prList collapses to `Size: 1` in `window_arrangement_helper` when it is
+  not the focused side window, expanding to `Weight: 1` when focused.
+
+Rendered frame confirms both the tab bar (`╭─[1]─Current - Needs My Review─╮`) and
+the collapsed single-line state when unfocused (`╶─[1]─Pull Requests─╴`). Three
+pre-existing tests were updated for the new layout (overview now via panel-1 hover,
+prContent single-tab, PR list tabbed). Full unit + entire integration suite green
+(13s), lint 0, `openspec --strict` valid, binary rebuilt.
+
+Only remaining task: 8.3 (optional — focus-inverts-split + side-by-side toggle).

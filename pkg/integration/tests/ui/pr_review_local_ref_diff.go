@@ -73,11 +73,11 @@ var PrReviewLocalRefDiff = NewIntegrationTest(NewIntegrationTestArgs{
 		t.Views().PrReview().NavigateToLine(Contains("foo.txt"))
 		t.Views().Main().Content(Contains("FOO_ADDED"))
 
-		// Phase 3 (3.5): `space` toggles the in-memory "viewed" marker on the file
-		// (a no-op in local-ref mode before this phase). [ ] -> [x].
-		t.Views().PrReview().SelectedLine(Contains("[ ]"))
+		// Phase 3 (3.5): `space` toggles the "viewed" state on the file, which colors
+		// its name green (unviewed → not green → viewed → green).
+		t.Views().PrReview().DoesNotContainColoredText("#008000", "foo.txt")
 		t.Views().PrReview().Press(keys.Universal.Select)
-		t.Views().PrReview().SelectedLine(Contains("[x]"))
+		t.Views().PrReview().ContainsColoredText("#008000", "foo.txt")
 
 		// Phase 3 (3.1/3.5): Enter on a file opens the focusable diff surface, sourced
 		// from the local `git diff` (no-op before — the bug found in manual testing).

@@ -1,6 +1,7 @@
 package context
 
 import (
+	"github.com/jesseduffield/lazygit/pkg/commands/models"
 	"github.com/jesseduffield/lazygit/pkg/commands/patch"
 	"github.com/jesseduffield/lazygit/pkg/gui/presentation"
 	"github.com/jesseduffield/lazygit/pkg/gui/types"
@@ -112,7 +113,8 @@ func (self *PrReviewDiffContext) onRender() {
 		}
 		self.c.SetViewContent(view, self.rendered.Content)
 		if self.selectedRow < 0 || self.selectedRow >= len(self.rendered.RowKind) ||
-			self.rendered.RowKind[self.selectedRow] != presentation.ReviewRowDiff {
+			(self.rendered.RowKind[self.selectedRow] != presentation.ReviewRowDiff &&
+				self.rendered.RowKind[self.selectedRow] != presentation.ReviewRowComment) {
 			self.selectedRow = self.firstDiffRow()
 			self.rangeAnchor = self.selectedRow
 		}
@@ -120,19 +122,55 @@ func (self *PrReviewDiffContext) onRender() {
 	self.applySelectionToView()
 }
 
-// MoveSelection moves the cursor to the next/prev DIFF row (delta ±1), skipping
-// comment and header rows. extend holds the range anchor so a multi-line range grows.
+// MoveSelection moves the cursor to the next/prev selectable row (delta ±1). A plain
+// move lands on DIFF rows and on review-thread (comment) rows — threads are selectable
+// anchors for reply/resolve (Phase 11). An extending move (range select) only walks
+// DIFF rows, since a comment range is meaningless across a thread block; extending
+// from a thread row collapses to a plain move.
 func (self *PrReviewDiffContext) MoveSelection(delta int, extend bool) {
-	next := self.nextDiffRow(self.selectedRow, delta)
+	if extend && self.rowThreadID(self.selectedRow) != "" {
+		extend = false
+	}
+	next := nextSelectableRowIn(self.rows(), self.selectedRow, delta, !extend)
 	if next == -1 {
 		return
 	}
 	self.selectedRow = next
-	if !extend {
+	if !extend || self.rowThreadID(next) != "" {
 		self.rangeAnchor = next
 	}
 	self.applySelectionToView()
 	self.c.Render()
+}
+
+// rowThreadID returns the review-thread node ID the given view row belongs to, or ""
+// when the row is not part of a thread block.
+func (self *PrReviewDiffContext) rowThreadID(row int) string {
+	if self.rendered == nil || row < 0 || row >= len(self.rendered.RowThreadID) {
+		return ""
+	}
+	return self.rendered.RowThreadID[row]
+}
+
+// SelectedThread returns the review thread the cursor is on, or nil when the cursor
+// is on a diff row. The thread is looked up live in the tree context's data so its
+// IsResolved state reflects the latest reload.
+func (self *PrReviewDiffContext) SelectedThread() *models.ReviewThread {
+	id := self.rowThreadID(self.selectedRow)
+	if id == "" {
+		return nil
+	}
+	tree := self.treeContext()
+	if tree == nil || tree.Data() == nil {
+		return nil
+	}
+	threads := tree.Data().Threads
+	for i := range threads {
+		if threads[i].ID == id {
+			return &threads[i]
+		}
+	}
+	return nil
 }
 
 func (self *PrReviewDiffContext) rows() []presentation.ReviewRowKind {
@@ -151,8 +189,11 @@ func (self *PrReviewDiffContext) firstDiffRow() int {
 	return -1
 }
 
-func (self *PrReviewDiffContext) nextDiffRow(from int, delta int) int {
-	rows := self.rows()
+// nextSelectableRowIn walks from `from` in the direction of delta and returns the
+// first row that is selectable: always DIFF rows, plus thread (comment) rows when
+// includeThreads is set. -1 when there is nothing further in that direction. Pure so
+// the navigation semantics are unit-testable.
+func nextSelectableRowIn(rows []presentation.ReviewRowKind, from int, delta int, includeThreads bool) int {
 	if delta == 0 || from < 0 {
 		return from
 	}
@@ -162,6 +203,9 @@ func (self *PrReviewDiffContext) nextDiffRow(from int, delta int) int {
 	}
 	for i := from + step; i >= 0 && i < len(rows); i += step {
 		if rows[i] == presentation.ReviewRowDiff {
+			return i
+		}
+		if includeThreads && rows[i] == presentation.ReviewRowComment {
 			return i
 		}
 	}

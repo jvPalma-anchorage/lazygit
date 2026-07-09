@@ -388,11 +388,41 @@ type TranslationSet struct {
 	PrReviewViewedTitle                   string
 	PrReviewNoDescription                 string
 	PrReviewDescriptionSection            string
+	PrReviewTimelineSection               string
+	PrReviewTimelineEmpty                 string
+	PrReviewReplyTitle                    string
+	PrReviewReplyAdded                    string
+	PrReviewThreadNotReplyable            string
+	PrReviewToggleResolveDescription      string
+	PrReviewNoThreadSelected              string
+	PrReviewThreadResolved                string
+	PrReviewThreadUnresolved              string
+	PrReviewQueueCommentDescription       string
+	PrReviewQueueCommentTitle             string
+	PrReviewCommentQueued                 string
+	PrReviewSubmitDescription             string
+	PrReviewSubmitMenuTitle               string
+	PrReviewSubmitEventComment            string
+	PrReviewSubmitEventApprove            string
+	PrReviewSubmitEventRequestChanges     string
+	PrReviewSubmitBodyTitle               string
+	PrReviewSubmitted                     string
+	PrListCurrentSection                  string
+	PrListLaunchedPlaceholder             string
+	PrListOpenDescription                 string
+	PrListEmptySection                    string
+	PrListFocusOverviewDescription        string
+	PrListStartReviewDescription          string
 	PrReviewReviewedMarker                string
 	PrReviewUnreviewedMarker              string
 	PrReviewConversationTitle             string
 	PrReviewEnterDiffDescription          string
 	PrListTitle                           string
+	PrChecksEmpty                         string
+	PrChecksUngrouped                     string
+	PrChecksEnterDescription              string
+	PrChecksNoLogs                        string
+	PrReviewRevalidateFailed              string
 	PrOverviewTitle                       string
 	PrChecksTitle                         string
 	PrCommitsTitle                        string
@@ -1562,11 +1592,41 @@ func EnglishTranslationSet() *TranslationSet {
 		PrReviewViewedTitle:                  "Viewed",
 		PrReviewNoDescription:                "This pull request has no description.",
 		PrReviewDescriptionSection:           "Description",
+		PrReviewTimelineSection:              "Timeline",
+		PrReviewTimelineEmpty:                "No conversation yet.",
+		PrReviewReplyTitle:                   "Reply to thread",
+		PrReviewReplyAdded:                   "Reply posted",
+		PrReviewThreadNotReplyable:           "This thread cannot be replied to",
+		PrReviewToggleResolveDescription:     "Resolve/unresolve the selected thread",
+		PrReviewNoThreadSelected:             "Move the cursor onto a comment thread first",
+		PrReviewThreadResolved:               "Thread resolved",
+		PrReviewThreadUnresolved:             "Thread unresolved",
+		PrReviewQueueCommentDescription:      "Add comment to pending review",
+		PrReviewQueueCommentTitle:            "Comment (queued for grouped review)",
+		PrReviewCommentQueued:                "Comment queued for review (%d pending)",
+		PrReviewSubmitDescription:            "Submit review",
+		PrReviewSubmitMenuTitle:              "Submit review (%d pending comments)",
+		PrReviewSubmitEventComment:           "Comment",
+		PrReviewSubmitEventApprove:           "Approve",
+		PrReviewSubmitEventRequestChanges:    "Request changes",
+		PrReviewSubmitBodyTitle:              "Review summary (optional)",
+		PrReviewSubmitted:                    "Review submitted",
+		PrListCurrentSection:                 "Current",
+		PrListLaunchedPlaceholder:            "(loading title…)",
+		PrListOpenDescription:                "Open this pull request in the workspace",
+		PrListEmptySection:                   "No pull requests in this section.",
+		PrListFocusOverviewDescription:       "Scroll the overview",
+		PrListStartReviewDescription:         "Start reviewing this pull request",
 		PrReviewReviewedMarker:               "[x]",
 		PrReviewUnreviewedMarker:             "[ ]",
 		PrReviewConversationTitle:            "Conversation",
 		PrReviewEnterDiffDescription:         "View diff",
 		PrListTitle:                          "Pull Requests",
+		PrChecksEmpty:                        "No checks reported for this pull request.",
+		PrChecksUngrouped:                    "Other checks",
+		PrChecksEnterDescription:             "Expand/collapse workflow or view check logs",
+		PrChecksNoLogs:                       "This check has no fetchable logs (external CI)",
+		PrReviewRevalidateFailed:             "Refreshing PR data failed (showing cached): %s",
 		PrOverviewTitle:                      "Overview",
 		PrChecksTitle:                        "Checks",
 		PrCommitsTitle:                       "Commits",

@@ -31,12 +31,17 @@ func (gui *Gui) orderedViewNameMappings() []viewNameMapping {
 		{viewPtr: &gui.Views.Snake, name: "snake"},
 		{viewPtr: &gui.Views.Submodules, name: "submodules"},
 		{viewPtr: &gui.Views.Worktrees, name: "worktrees"},
-		{viewPtr: &gui.Views.PrReview, name: "prReview"},
 		{viewPtr: &gui.Views.PrList, name: "prList"},
+		// Review-mode tab stacks: views sharing a window are drawn in declaration
+		// order and mouse clicks hit the topmost, so each window's DEFAULT tab view
+		// must be declared LAST in its stack — the same convention as
+		// Tags → Remotes → PullRequests → Branches below. prContent defaults to
+		// Files Changed (prReview); prActivity defaults to Conversation.
 		{viewPtr: &gui.Views.PrOverview, name: "prOverview"},
-		{viewPtr: &gui.Views.PrConversation, name: "prConversation"},
-		{viewPtr: &gui.Views.PrChecks, name: "prChecks"},
+		{viewPtr: &gui.Views.PrReview, name: "prReview"},
 		{viewPtr: &gui.Views.PrCommits, name: "prCommits"},
+		{viewPtr: &gui.Views.PrChecks, name: "prChecks"},
+		{viewPtr: &gui.Views.PrConversation, name: "prConversation"},
 		{viewPtr: &gui.Views.Files, name: "files"},
 		{viewPtr: &gui.Views.Tags, name: "tags"},
 		{viewPtr: &gui.Views.Remotes, name: "remotes"},
@@ -255,7 +260,7 @@ func (gui *Gui) configureViewProperties() {
 				views  []*gocui.View
 			}{
 				{window: "prList", views: []*gocui.View{gui.Views.PrList}},
-				{window: "prContent", views: []*gocui.View{gui.Views.PrOverview, gui.Views.PrReview}},
+				{window: "prContent", views: []*gocui.View{gui.Views.PrReview}},
 				{window: "prActivity", views: []*gocui.View{gui.Views.PrConversation, gui.Views.PrChecks, gui.Views.PrCommits}},
 			}
 		}

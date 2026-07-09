@@ -134,6 +134,11 @@ func buildWorkingTreeCommands(deps commonDeps) *WorkingTreeCommands {
 	return NewWorkingTreeCommands(gitCommon, submoduleCommands, fileLoader)
 }
 
+func buildGitHubCommands(deps commonDeps) *GitHubCommands {
+	gitCommon := buildGitCommon(deps)
+	return NewGitHubCommands(gitCommon)
+}
+
 func buildStashCommands(deps commonDeps) *StashCommands {
 	gitCommon := buildGitCommon(deps)
 	fileLoader := buildFileLoader(gitCommon)

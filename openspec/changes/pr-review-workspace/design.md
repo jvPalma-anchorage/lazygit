@@ -396,6 +396,52 @@ are capped at **max 10 files OR 2000 lines**; beyond the cap, render a
 "truncated — N more" note rather than streaming a huge diff/tree (protects against
 the infinite-load/hang failure mode on large PRs).
 
+**Superseded (post-6, 2026-07):** the file-tree cap is removed — it was
+misapplied to the tree (blob-OID resolution, its only per-file cost, is now one
+batched `git ls-tree` per side), so every changed file is shown, matching
+lazygit's own uncapped file panels. Only the diff render stays bounded, by the
+pager's lazy streaming. Generated files (lockfiles, `*.generated.*`, codegen,
+snapshots, minified) are auto-hidden with a `G` toggle instead.
+
+## Decisions from dogfooding (Session 3, 2026-07 — real anchorage PRs)
+
+### D3.1 — Per-PR filesystem cache with background revalidation (Phase 9)
+Boot must stop hitting the network/git serially on every launch. Each PR gets a
+snapshot directory `<lazygit-config-dir>/prReview/{owner}/{repo}/{number}/`
+(user-specified layout; resolve the config dir via lazygit's helper so it lands in
+`~/.config/lazygit/prReview/...` on Linux). One JSON snapshot per data type —
+`meta.json` (PR data + conversation), `files.json` (changed files + blob OIDs),
+`checks.json` (reserved for Phase 8) — each wrapped `{fetchedAt, headRefOid,
+payload}` so every data type independently knows its last-updated snapshot. Boot
+renders from cache instantly when present, then revalidates in the background with
+one cheap `updatedAt`/`headRefOid` query, re-fetching only the data types whose
+upstream changed. Git-side: skip `git fetch` entirely when
+`refs/lazygit-review/<pr>/{base,head}` already point at the cached OIDs — the
+dominant boot cost on a monorepo today, since a URL-fetch forces full negotiation
+on every boot. `R` bypasses the cache. Writes are atomic (temp+rename); a corrupt
+snapshot is a cache miss, never an error.
+
+### D3.2 — Default-tab z-order (Phase 10)
+gocui draws overlapping tab views in creation order and routes mouse clicks to the
+topmost; lazygit's convention is that a window's default tab view is declared LAST
+in `orderedViewNameMappings` (cf. `Tags, Remotes, PullRequests, Branches`). The
+review stacks violate this (`PrConversation, PrChecks, PrCommits` → Commits on
+top), which is why panel `[3]` visually defaults to Commits while focus-based
+tests pass on Conversation. Fix by reordering; tests must assert the topmost
+view, not just focus or buffer contents.
+
+### D3.3 — Threads become interactive (Phase 11)
+Inline threads in the diff surface graduate from display-only to selectable
+anchors with reply (REST `in_reply_to`) and resolve/unresolve (GraphQL
+`resolveReviewThread`/`unresolveReviewThread`; thread node IDs are already
+captured).
+
+### D3.4 — Overview v2 is the conversation-timeline home (Phase 12)
+The Overview tab renders the full header block (number+title heading,
+state+author, `base ← head`, label chips in GitHub colors) plus an oldest-first
+timeline merging issue comments and submitted review summaries — including bot
+authors, which today are invisible everywhere in the UI.
+
 ## Open Questions
 
 - ~~replace/coexist with `L`~~ → **resolved D1.2** (`R` replaces `L`; project-agnostic).

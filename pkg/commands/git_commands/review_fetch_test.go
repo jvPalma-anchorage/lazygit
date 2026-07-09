@@ -181,3 +181,32 @@ func TestPruneStaleReviewRefs(t *testing.T) {
 	assert.NoError(t, err)
 	runner.CheckForMissingCalls()
 }
+
+// A ref already at the wanted OID must NOT trigger a fetch; one that differs must.
+func TestFetchReviewRefsSkipsUpToDateSides(t *testing.T) {
+	// Base ref already points at baseOid → rev-parse only, no fetch. Head ref points
+	// elsewhere → rev-parse then a real fetch.
+	runner := oscommands.NewFakeRunner(t).
+		ExpectGitArgs([]string{"rev-parse", "--verify", "--quiet", "refs/lazygit-review/7/base"}, "baseOid\n", nil).
+		ExpectGitArgs([]string{"rev-parse", "--verify", "--quiet", "refs/lazygit-review/7/head"}, "staleOid\n", nil).
+		ExpectGitArgs([]string{"fetch", "--no-write-fetch-head", "--no-tags", "https://example.com/head.git", "+headOid:refs/lazygit-review/7/head"}, "", nil)
+
+	instance := buildGitHubCommands(commonDeps{runner: runner})
+
+	err := instance.FetchReviewRefs(7, "https://example.com/head.git", "headOid", "https://example.com/base.git", "baseOid")
+	assert.NoError(t, err)
+	runner.CheckForMissingCalls()
+}
+
+// Both refs current → zero fetches (the warm-boot fast path).
+func TestFetchReviewRefsSkipsEverythingWhenCurrent(t *testing.T) {
+	runner := oscommands.NewFakeRunner(t).
+		ExpectGitArgs([]string{"rev-parse", "--verify", "--quiet", "refs/lazygit-review/7/base"}, "baseOid\n", nil).
+		ExpectGitArgs([]string{"rev-parse", "--verify", "--quiet", "refs/lazygit-review/7/head"}, "headOid\n", nil)
+
+	instance := buildGitHubCommands(commonDeps{runner: runner})
+
+	err := instance.FetchReviewRefs(7, "https://example.com/head.git", "headOid", "https://example.com/base.git", "baseOid")
+	assert.NoError(t, err)
+	runner.CheckForMissingCalls()
+}

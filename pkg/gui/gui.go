@@ -902,12 +902,12 @@ func (gui *Gui) viewTabMap() map[string][]context.TabView {
 	// In PR review mode the side section is the dedicated review workspace with its
 	// own tabs; the normal files/branches/commits tabs are not present at all.
 	if gui.isReviewMode {
+		// prList is deliberately absent: its tabs are the gh-dash sections, set
+		// dynamically on the view by PrListContext (Phase 13), so the static tab map
+		// must not overwrite them. prContent hosts only Files Changed now — the
+		// Overview moved to window [1]'s hover preview.
 		return map[string][]context.TabView{
-			"prList": {
-				{Tab: gui.c.Tr.PrListTitle, ViewName: "prList"},
-			},
 			"prContent": {
-				{Tab: gui.c.Tr.PrOverviewTitle, ViewName: "prOverview"},
 				{Tab: gui.c.Tr.PrFilesChangedTitle, ViewName: "prReview"},
 			},
 			"prActivity": {

@@ -50,6 +50,18 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` ] `` | Следующая вкладка |  |
 | `` [ `` | Предыдущая вкладка |  |
 
+## Checks
+
+| Key | Action | Info |
+|-----|--------|-------------|
+| `` <enter> `` | Expand/collapse workflow or view check logs |  |
+
+## Commits
+
+| Key | Action | Info |
+|-----|--------|-------------|
+| `` <enter> `` | Focus the commit's changes in the main view |  |
+
 ## Input prompt
 
 | Key | Action | Info |
@@ -65,17 +77,23 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` <space> `` | Toggle reviewed |  |
 | `` t `` | Toggle unified / side-by-side diff |  |
 | `` d `` | View PR description |  |
+| `` G `` | Show/hide generated files |  |
 | `` R `` | Refresh pull request |  |
+| `` S `` | Submit review |  |
 | `` 0 `` | Focus main view |  |
 | `` / `` | Filter the current view by text |  |
 | `` <space> `` | Range select down |  |
 | `` c `` | Add review comment |  |
+| `` t `` | Resolve/unresolve the selected thread |  |
+| `` C `` | Add comment to pending review |  |
 | `` <esc> `` | Вернуться к панели файлов |  |
 
 ## Pull Requests
 
 | Key | Action | Info |
 |-----|--------|-------------|
+| `` <enter> `` | Scroll the overview |  |
+| `` <space> `` | Start reviewing this pull request |  |
 | `` / `` | Filter the current view by text |  |
 
 ## Worktrees

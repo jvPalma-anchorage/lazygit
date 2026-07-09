@@ -6,6 +6,7 @@ import (
 
 	"github.com/jesseduffield/lazygit/pkg/commands/models"
 	"github.com/jesseduffield/lazygit/pkg/config"
+	"github.com/jesseduffield/lazygit/pkg/gocui"
 	"github.com/jesseduffield/lazygit/pkg/gui/context"
 	"github.com/jesseduffield/lazygit/pkg/gui/filetree"
 	"github.com/jesseduffield/lazygit/pkg/gui/types"
@@ -83,7 +84,78 @@ func (self *PrReviewController) GetKeybindings(opts types.KeybindingsOpts) []*ty
 			Description:     self.c.Tr.PrReviewRefreshDescription,
 			DisplayOnScreen: true,
 		},
+		{
+			Keys:            opts.GetKeys(config.Keybinding{"S"}),
+			Handler:         self.submitReview,
+			Description:     self.c.Tr.PrReviewSubmitDescription,
+			DisplayOnScreen: true,
+		},
 	}
+}
+
+// submitReview submits the session's pending comments as ONE pull-request review
+// (Phase 7): pick the event (comment / approve / request changes), enter an optional
+// summary body, POST, then clear the queue and reload so the new threads render.
+func (self *PrReviewController) submitReview() error {
+	ctx := self.context()
+	pending := ctx.PendingComments()
+
+	menuTitle := fmt.Sprintf(self.c.Tr.PrReviewSubmitMenuTitle, len(pending))
+	events := []struct {
+		label string
+		event string
+	}{
+		{self.c.Tr.PrReviewSubmitEventComment, "COMMENT"},
+		{self.c.Tr.PrReviewSubmitEventApprove, "APPROVE"},
+		{self.c.Tr.PrReviewSubmitEventRequestChanges, "REQUEST_CHANGES"},
+	}
+
+	items := make([]*types.MenuItem, 0, len(events))
+	for _, e := range events {
+		event := e.event
+		items = append(items, &types.MenuItem{
+			Label: e.label,
+			OnPress: func() error {
+				self.c.Prompt(types.PromptOpts{
+					Title: self.c.Tr.PrReviewSubmitBodyTitle,
+					HandleConfirm: func(body string) error {
+						self.doSubmitReview(event, body)
+						return nil
+					},
+				})
+				return nil
+			},
+		})
+	}
+
+	return self.c.Menu(types.CreateMenuOptions{Title: menuTitle, Items: items})
+}
+
+func (self *PrReviewController) doSubmitReview(event string, body string) {
+	ctx := self.context()
+	owner, repo, number := ctx.Target()
+	data := ctx.Data()
+	if data == nil {
+		return
+	}
+	headOid := data.HeadRefOid
+	pending := ctx.PendingComments()
+
+	self.c.OnWorker(func(_ gocui.Task) error {
+		err := self.c.Git().GitHub.SubmitReview(owner, repo, number, headOid, event, body, pending)
+
+		self.c.OnUIThread(func() error {
+			if err != nil {
+				self.c.ErrorToast(fmt.Sprintf(self.c.Tr.PrReviewCommentFailed, err.Error()))
+				return nil
+			}
+			ctx.ClearPendingComments()
+			self.c.Toast(self.c.Tr.PrReviewSubmitted)
+			ctx.Reload()
+			return nil
+		})
+		return nil
+	})
 }
 
 // GetOnRenderToMain renders the selected file's inline diff into the main view and
@@ -151,6 +223,22 @@ func (self *PrReviewController) renderLocalRefDiff(ctx *context.PrReviewContext)
 	subtitle := ""
 	if gen := ctx.HiddenGeneratedCount(); gen > 0 {
 		subtitle = fmt.Sprintf(self.c.Tr.PrReviewGeneratedHiddenNote, gen)
+	}
+
+	// A file that carries review threads renders through the inline presenter so
+	// EVERY reviewer's comments are visible on hover (not just the current user's,
+	// and without having to enter the file) — the pager can't interleave threads.
+	// Files without threads and folders keep the clean pager (delta) rendering.
+	if node.IsFile() && ctx.SelectedFileHasThreads() {
+		self.c.RenderToMainViews(types.RefreshMainOpts{
+			Pair: self.c.MainViewPairs().Normal,
+			Main: &types.ViewUpdateOpts{
+				Title:    self.c.Tr.PrReviewTitle,
+				SubTitle: subtitle,
+				Task:     types.NewRenderStringWithoutScrollTask(ctx.RenderSelectedFileInlineDiff(self.c.Views().Main.InnerWidth())),
+			},
+		})
+		return
 	}
 
 	// Partition the selection's files into unviewed and viewed. When a folder holds

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/jesseduffield/lazygit/pkg/commands/patch"
+	"github.com/jesseduffield/lazygit/pkg/gui/presentation"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -135,4 +136,24 @@ func TestIsGeneratedReviewFile(t *testing.T) {
 	for _, p := range source {
 		assert.False(t, isGeneratedReviewFile(p), "expected %q to be source", p)
 	}
+}
+
+func TestNextSelectableRowIncludesThreadsOnPlainMove(t *testing.T) {
+	// rows: header, diff, comment, comment, diff
+	rows := []presentation.ReviewRowKind{
+		presentation.ReviewRowHeader,
+		presentation.ReviewRowDiff,
+		presentation.ReviewRowComment,
+		presentation.ReviewRowComment,
+		presentation.ReviewRowDiff,
+	}
+
+	// A plain move from the diff row lands on the thread block's first row.
+	assert.Equal(t, 2, nextSelectableRowIn(rows, 1, 1, true))
+	// A range-extending move skips the whole thread block to the next diff row.
+	assert.Equal(t, 4, nextSelectableRowIn(rows, 1, 1, false))
+	// Moving up from the last diff row lands on the thread block's last row.
+	assert.Equal(t, 3, nextSelectableRowIn(rows, 4, -1, true))
+	// Headers are never selectable: moving up from the first diff row goes nowhere.
+	assert.Equal(t, -1, nextSelectableRowIn(rows, 1, -1, true))
 }

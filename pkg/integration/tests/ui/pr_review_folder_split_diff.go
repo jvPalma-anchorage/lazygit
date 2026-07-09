@@ -53,7 +53,11 @@ var PrReviewFolderSplitDiff = NewIntegrationTest(NewIntegrationTestArgs{
 			IsFocused().
 			NavigateToLine(Contains("foo.txt"))
 		t.Views().PrReview().Press(keys.Universal.Select)
-		t.Views().PrReview().SelectedLine(Contains("[x]"))
+		// foo.txt's name is now green; its parent folder "src" turns yellow (partially
+		// viewed — foo viewed, bar/baz not).
+		t.Views().PrReview().
+			ContainsColoredText("#008000", "foo.txt").
+			ContainsColoredText("#808000", "src")
 
 		// Selecting the folder now splits the diff: unviewed (bar, baz) on top, viewed
 		// (foo) on the bottom.
@@ -68,5 +72,23 @@ var PrReviewFolderSplitDiff = NewIntegrationTest(NewIntegrationTestArgs{
 			IsVisible().
 			Content(Contains("FOO_CONTENT")).
 			Content(DoesNotContain("BAR_CONTENT"))
+
+		// SPACE on the folder marks EVERY file under it viewed as a group: the folder
+		// (and all its files) turn green.
+		t.Views().PrReview().NavigateToLine(Contains("src"))
+		t.Views().PrReview().Press(keys.Universal.Select)
+		t.Views().PrReview().
+			ContainsColoredText("#008000", "src").
+			ContainsColoredText("#008000", "foo.txt").
+			ContainsColoredText("#008000", "bar.txt").
+			ContainsColoredText("#008000", "baz.txt").
+			DoesNotContainColoredText("#808000", "src")
+
+		// SPACE again on the fully-viewed folder unviews the whole group.
+		t.Views().PrReview().Press(keys.Universal.Select)
+		t.Views().PrReview().
+			DoesNotContainColoredText("#008000", "foo.txt").
+			DoesNotContainColoredText("#008000", "bar.txt").
+			DoesNotContainColoredText("#008000", "baz.txt")
 	},
 })

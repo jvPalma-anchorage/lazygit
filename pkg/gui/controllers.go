@@ -386,6 +386,14 @@ func (gui *Gui) resetHelpersAndControllers() {
 		controllers.NewPrOverviewController(common),
 	)
 
+	controllers.AttachControllers(gui.State.Contexts.PrList,
+		controllers.NewPrListController(common),
+	)
+
+	controllers.AttachControllers(gui.State.Contexts.PrChecks,
+		controllers.NewPrChecksController(common),
+	)
+
 	controllers.AttachControllers(gui.State.Contexts.Remotes,
 		remotesController,
 	)

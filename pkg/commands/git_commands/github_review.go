@@ -24,7 +24,12 @@ type PullRequestReviewData struct {
 	Author      string
 	BaseRefName string
 	HeadRefName string
-	HeadRefOid  string
+	// ViewerLogin is the authenticated gh user (GraphQL viewer{login}), used to
+	// surface the current user's own reviewer row first in the Conversation tab.
+	ViewerLogin string
+	// Labels carry the PR's labels (name + GitHub hex color) for the Overview chips.
+	Labels     []models.PrLabel
+	HeadRefOid string
 	// BaseRefOid, BaseRepoURL and HeadRepoURL drive the local-ref read model
 	// (DW2 / Phase 2): the exact OIDs to fetch and the per-side repo URLs (which
 	// differ for a fork head) so the fetch is reproducible and fork-aware.
@@ -47,12 +52,14 @@ type PullRequestReviewData struct {
 // from FetchPRChangedFiles). Each connection is capped at first:50 with a
 // hasNextPage flag so the caller can surface a truncation note.
 const reviewDataQuery = `query($owner:String!,$repo:String!,$number:Int!){
+  viewer{ login }
   repository(owner:$owner,name:$repo){
     pullRequest(number:$number){
       id number title state isDraft baseRefName headRefName headRefOid baseRefOid body
       baseRepository{ url }
       headRepository{ url }
       author{ login }
+      labels(first:100){ pageInfo{ hasNextPage } nodes{ name color } }
       comments(first:50){ pageInfo{ hasNextPage }
         nodes{ author{ login } body createdAt } }
       reviewRequests(first:50){ pageInfo{ hasNextPage }
@@ -146,6 +153,109 @@ func (self *GitHubCommands) AddReviewComment(owner string, repo string, number i
 	return nil
 }
 
+// PendingReviewComment is one comment accumulated for a grouped review submission
+// (Phase 7): a RIGHT-side line range on a file plus the comment body. It is held in
+// memory per session until the user submits the review.
+type PendingReviewComment struct {
+	Path      string
+	StartLine int
+	Line      int
+	Body      string
+}
+
+// BuildReviewPayload constructs the JSON body for POST pulls/{n}/reviews: the live
+// head commit, the review event (COMMENT / APPROVE / REQUEST_CHANGES), the summary
+// body, and the accumulated comments. Mirrors the single-comment API rules: a
+// single-line comment must OMIT start_line entirely (sending start_line == line is a
+// 422); multi-line ranges send start_line + start_side.
+func BuildReviewPayload(commitID string, event string, body string, comments []PendingReviewComment) ([]byte, error) {
+	type payloadComment struct {
+		Path      string `json:"path"`
+		Body      string `json:"body"`
+		Side      string `json:"side"`
+		Line      int    `json:"line"`
+		StartLine int    `json:"start_line,omitempty"`
+		StartSide string `json:"start_side,omitempty"`
+	}
+	payload := struct {
+		CommitID string           `json:"commit_id"`
+		Event    string           `json:"event"`
+		Body     string           `json:"body,omitempty"`
+		Comments []payloadComment `json:"comments,omitempty"`
+	}{CommitID: commitID, Event: event, Body: body}
+
+	for _, c := range comments {
+		pc := payloadComment{Path: c.Path, Body: c.Body, Side: "RIGHT", Line: c.Line}
+		if c.StartLine != c.Line {
+			pc.StartLine = c.StartLine
+			pc.StartSide = "RIGHT"
+		}
+		payload.Comments = append(payload.Comments, pc)
+	}
+	return json.Marshal(payload)
+}
+
+// SubmitReview submits one grouped pull-request review (summary body + event +
+// accumulated comments) via POST pulls/{n}/reviews, passing the JSON payload on
+// stdin (`--input -`). A non-2xx response surfaces the body so a 422 validation
+// message reaches the user.
+func (self *GitHubCommands) SubmitReview(owner string, repo string, number int, commitID string, event string, body string, comments []PendingReviewComment) error {
+	payload, err := BuildReviewPayload(commitID, event, body, comments)
+	if err != nil {
+		return err
+	}
+
+	cmdArgs := []string{
+		"gh", "api", "--method", "POST",
+		fmt.Sprintf("repos/%s/%s/pulls/%d/reviews", owner, repo, number),
+		"--input", "-",
+	}
+
+	_, stderr, err := self.cmd.New(cmdArgs).SetStdin(string(payload)).DontLog().RunWithOutputs()
+	if err != nil {
+		return fmt.Errorf("gh api submit-review failed: %w: %s", err, stderr)
+	}
+	return nil
+}
+
+// ReplyToReviewComment posts a reply to an existing review thread via the REST
+// replies endpoint, keyed by the thread's root comment database ID. Like the other
+// write paths, a non-2xx response surfaces the response body in the error.
+func (self *GitHubCommands) ReplyToReviewComment(owner string, repo string, number int, rootCommentID int, body string) error {
+	cmdArgs := []string{
+		"gh", "api", "--method", "POST",
+		fmt.Sprintf("repos/%s/%s/pulls/%d/comments/%d/replies", owner, repo, number, rootCommentID),
+		"-f", "body=" + body,
+	}
+
+	_, stderr, err := self.cmd.New(cmdArgs).DontLog().RunWithOutputs()
+	if err != nil {
+		return fmt.Errorf("gh api reply-to-comment failed: %w: %s", err, stderr)
+	}
+	return nil
+}
+
+// SetReviewThreadResolved resolves or unresolves a review thread via the GraphQL
+// mutation (there is no REST endpoint for thread resolution). threadID is the
+// thread's GraphQL node ID, which the read query already captures.
+func (self *GitHubCommands) SetReviewThreadResolved(threadID string, resolved bool) error {
+	mutation := "mutation($id:ID!){unresolveReviewThread(input:{threadId:$id}){thread{ id }}}"
+	if resolved {
+		mutation = "mutation($id:ID!){resolveReviewThread(input:{threadId:$id}){thread{ id }}}"
+	}
+	cmdArgs := []string{
+		"gh", "api", "graphql",
+		"-f", "query=" + mutation,
+		"-f", "id=" + threadID,
+	}
+
+	_, stderr, err := self.cmd.New(cmdArgs).DontLog().RunWithOutputs()
+	if err != nil {
+		return fmt.Errorf("gh api resolve-thread failed: %w: %s", err, stderr)
+	}
+	return nil
+}
+
 func parsePRChangedFiles(respBytes []byte) ([]*models.GithubPullRequestFile, error) {
 	var files []*models.GithubPullRequestFile
 	if err := json.Unmarshal(respBytes, &files); err != nil {
@@ -158,6 +268,7 @@ func parsePRChangedFiles(respBytes []byte) ([]*models.GithubPullRequestFile, err
 
 type reviewDataResponse struct {
 	Data struct {
+		Viewer     *graphQLLogin `json:"viewer"`
 		Repository struct {
 			PullRequest *reviewPullRequestNode `json:"pullRequest"`
 		} `json:"repository"`
@@ -192,7 +303,14 @@ type reviewPullRequestNode struct {
 	HeadRepository *struct {
 		URL string `json:"url"`
 	} `json:"headRepository"`
-	Author   *graphQLLogin `json:"author"`
+	Author *graphQLLogin `json:"author"`
+	Labels struct {
+		PageInfo graphQLPageInfo `json:"pageInfo"`
+		Nodes    []struct {
+			Name  string `json:"name"`
+			Color string `json:"color"`
+		} `json:"nodes"`
+	} `json:"labels"`
 	Comments struct {
 		PageInfo graphQLPageInfo `json:"pageInfo"`
 		Nodes    []struct {
@@ -287,6 +405,7 @@ func parsePRReviewData(respBytes []byte) (*PullRequestReviewData, error) {
 		Author:      loginOf(node.Author),
 		BaseRefName: node.BaseRefName,
 		HeadRefName: node.HeadRefName,
+		ViewerLogin: loginOf(resp.Data.Viewer),
 		HeadRefOid:  node.HeadRefOid,
 		BaseRefOid:  node.BaseRefOid,
 	}
@@ -296,12 +415,16 @@ func parsePRReviewData(respBytes []byte) (*PullRequestReviewData, error) {
 	if node.HeadRepository != nil {
 		result.HeadRepoURL = node.HeadRepository.URL
 	}
+	for _, l := range node.Labels.Nodes {
+		result.Labels = append(result.Labels, models.PrLabel{Name: l.Name, Color: l.Color})
+	}
 
 	truncated := node.Comments.PageInfo.HasNextPage ||
 		node.ReviewRequests.PageInfo.HasNextPage ||
 		node.LatestReviews.PageInfo.HasNextPage ||
 		node.Reviews.PageInfo.HasNextPage ||
-		node.ReviewThreads.PageInfo.HasNextPage
+		node.ReviewThreads.PageInfo.HasNextPage ||
+		node.Labels.PageInfo.HasNextPage
 
 	// Global (issue-level) comments.
 	for _, c := range node.Comments.Nodes {

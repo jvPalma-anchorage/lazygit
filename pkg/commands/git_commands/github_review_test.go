@@ -1,8 +1,10 @@
 package git_commands
 
 import (
+	"encoding/json"
 	"testing"
 
+	"github.com/jesseduffield/lazygit/pkg/commands/oscommands"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -334,4 +336,124 @@ func TestParsePRReviewDataUpgradesPendingCommenters(t *testing.T) {
 	assert.Equal(t, "COMMENTED", state["jvpalma"], "a PENDING reviewer who commented becomes COMMENTED")
 	assert.Equal(t, "PENDING", state["tiago"], "a PENDING reviewer with no comment stays PENDING")
 	assert.Equal(t, "APPROVED", state["jenny"], "an APPROVED reviewer who commented stays APPROVED")
+}
+
+func TestParsePRReviewDataCapturesViewerAndLabels(t *testing.T) {
+	json := `{
+	  "data": {
+	    "viewer": { "login": "myself" },
+	    "repository": { "pullRequest": {
+	      "id": "PR_9", "number": 9, "title": "t", "state": "OPEN", "isDraft": false,
+	      "baseRefName": "main", "headRefName": "f", "headRefOid": "h", "baseRefOid": "b",
+	      "author": { "login": "author" },
+	      "labels": { "nodes": [
+	        { "name": "bug", "color": "d73a4a" },
+	        { "name": "frontend", "color": "0e8a16" }
+	      ] },
+	      "comments": { "pageInfo": { "hasNextPage": false }, "nodes": [] },
+	      "reviewRequests": { "pageInfo": { "hasNextPage": false }, "nodes": [] },
+	      "latestReviews": { "pageInfo": { "hasNextPage": false }, "nodes": [] },
+	      "reviews": { "pageInfo": { "hasNextPage": false }, "nodes": [] },
+	      "reviewThreads": { "pageInfo": { "hasNextPage": false }, "nodes": [] }
+	    } } }
+	}`
+	result, err := parsePRReviewData([]byte(json))
+	assert.NoError(t, err)
+	assert.Equal(t, "myself", result.ViewerLogin)
+	assert.Len(t, result.Labels, 2)
+	assert.Equal(t, "bug", result.Labels[0].Name)
+	assert.Equal(t, "d73a4a", result.Labels[0].Color)
+	assert.Equal(t, "frontend", result.Labels[1].Name)
+	assert.False(t, result.Truncated)
+}
+
+func TestParsePRReviewDataLabelsTruncationFoldsIntoTruncated(t *testing.T) {
+	json := `{
+	  "data": { "viewer": { "login": "v" }, "repository": { "pullRequest": {
+	    "id": "PR_9", "number": 9, "title": "t", "state": "OPEN", "isDraft": false,
+	    "baseRefName": "main", "headRefName": "f", "headRefOid": "h", "baseRefOid": "b",
+	    "author": { "login": "author" },
+	    "labels": { "pageInfo": { "hasNextPage": true }, "nodes": [ { "name": "bug", "color": "d73a4a" } ] },
+	    "comments": { "pageInfo": { "hasNextPage": false }, "nodes": [] },
+	    "reviewRequests": { "pageInfo": { "hasNextPage": false }, "nodes": [] },
+	    "latestReviews": { "pageInfo": { "hasNextPage": false }, "nodes": [] },
+	    "reviews": { "pageInfo": { "hasNextPage": false }, "nodes": [] },
+	    "reviewThreads": { "pageInfo": { "hasNextPage": false }, "nodes": [] }
+	  } } }
+	}`
+	result, err := parsePRReviewData([]byte(json))
+	assert.NoError(t, err)
+	assert.True(t, result.Truncated, "an over-full labels page must mark the data truncated")
+}
+
+func TestReplyToReviewComment(t *testing.T) {
+	runner := oscommands.NewFakeRunner(t).
+		ExpectArgs([]string{"gh", "api", "--method", "POST", "repos/own/rep/pulls/5/comments/42/replies", "-f", "body=looks good"}, "", nil)
+	instance := buildGitHubCommands(commonDeps{runner: runner})
+
+	assert.NoError(t, instance.ReplyToReviewComment("own", "rep", 5, 42, "looks good"))
+	runner.CheckForMissingCalls()
+}
+
+func TestSetReviewThreadResolved(t *testing.T) {
+	runner := oscommands.NewFakeRunner(t).
+		ExpectArgs([]string{"gh", "api", "graphql", "-f", "query=mutation($id:ID!){resolveReviewThread(input:{threadId:$id}){thread{ id }}}", "-f", "id=T_1"}, "", nil).
+		ExpectArgs([]string{"gh", "api", "graphql", "-f", "query=mutation($id:ID!){unresolveReviewThread(input:{threadId:$id}){thread{ id }}}", "-f", "id=T_1"}, "", nil)
+	instance := buildGitHubCommands(commonDeps{runner: runner})
+
+	assert.NoError(t, instance.SetReviewThreadResolved("T_1", true))
+	assert.NoError(t, instance.SetReviewThreadResolved("T_1", false))
+	runner.CheckForMissingCalls()
+}
+
+func TestBuildReviewPayload(t *testing.T) {
+	payload, err := BuildReviewPayload("headoid", "REQUEST_CHANGES", "overall summary", []PendingReviewComment{
+		{Path: "a.go", StartLine: 3, Line: 5, Body: "multi-line"},
+		{Path: "b.go", StartLine: 7, Line: 7, Body: "single-line"},
+	})
+	assert.NoError(t, err)
+
+	var decoded map[string]any
+	assert.NoError(t, json.Unmarshal(payload, &decoded))
+	assert.Equal(t, "headoid", decoded["commit_id"])
+	assert.Equal(t, "REQUEST_CHANGES", decoded["event"])
+	assert.Equal(t, "overall summary", decoded["body"])
+
+	comments := decoded["comments"].([]any)
+	assert.Len(t, comments, 2)
+
+	multi := comments[0].(map[string]any)
+	assert.Equal(t, "a.go", multi["path"])
+	assert.Equal(t, float64(5), multi["line"])
+	assert.Equal(t, float64(3), multi["start_line"])
+	assert.Equal(t, "RIGHT", multi["start_side"])
+
+	// A single-line comment must OMIT start_line entirely (422 otherwise).
+	single := comments[1].(map[string]any)
+	assert.Equal(t, float64(7), single["line"])
+	_, hasStartLine := single["start_line"]
+	assert.False(t, hasStartLine)
+}
+
+func TestBuildReviewPayloadOmitsEmptyOptionals(t *testing.T) {
+	payload, err := BuildReviewPayload("oid", "APPROVE", "", nil)
+	assert.NoError(t, err)
+	var decoded map[string]any
+	assert.NoError(t, json.Unmarshal(payload, &decoded))
+	_, hasBody := decoded["body"]
+	assert.False(t, hasBody, "empty body must be omitted")
+	_, hasComments := decoded["comments"]
+	assert.False(t, hasComments, "empty comments must be omitted")
+}
+
+func TestSubmitReviewInvokesGhWithStdinPayload(t *testing.T) {
+	runner := oscommands.NewFakeRunner(t).
+		ExpectArgs([]string{"gh", "api", "--method", "POST", "repos/own/rep/pulls/9/reviews", "--input", "-"}, "", nil)
+	instance := buildGitHubCommands(commonDeps{runner: runner})
+
+	err := instance.SubmitReview("own", "rep", 9, "oid", "COMMENT", "body", []PendingReviewComment{
+		{Path: "a.go", StartLine: 1, Line: 1, Body: "x"},
+	})
+	assert.NoError(t, err)
+	runner.CheckForMissingCalls()
 }

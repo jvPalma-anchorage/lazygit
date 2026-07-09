@@ -50,6 +50,18 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` ] `` | 次のタブ |  |
 | `` [ `` | 前のタブ |  |
 
+## Checks
+
+| Key | Action | Info |
+|-----|--------|-------------|
+| `` <enter> `` | Expand/collapse workflow or view check logs |  |
+
+## Commits
+
+| Key | Action | Info |
+|-----|--------|-------------|
+| `` <enter> `` | Focus the commit's changes in the main view |  |
+
 ## Input prompt
 
 | Key | Action | Info |
@@ -65,17 +77,23 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` <space> `` | Toggle reviewed |  |
 | `` t `` | Toggle unified / side-by-side diff |  |
 | `` d `` | View PR description |  |
+| `` G `` | Show/hide generated files |  |
 | `` R `` | Refresh pull request |  |
+| `` S `` | Submit review |  |
 | `` 0 `` | メインビューにフォーカス |  |
 | `` / `` | 現在のビューをテキストでフィルタリング |  |
 | `` <space> `` | 範囲選択を下に |  |
 | `` c `` | Add review comment |  |
+| `` t `` | Resolve/unresolve the selected thread |  |
+| `` C `` | Add comment to pending review |  |
 | `` <esc> `` | ファイルパネルに戻る |  |
 
 ## Pull Requests
 
 | Key | Action | Info |
 |-----|--------|-------------|
+| `` <enter> `` | Scroll the overview |  |
+| `` <space> `` | Start reviewing this pull request |  |
 | `` / `` | 現在のビューをテキストでフィルタリング |  |
 
 ## コミット

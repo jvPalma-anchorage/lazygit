@@ -36,27 +36,15 @@ var PrReviewWorkspaceLayout = NewIntegrationTest(NewIntegrationTestArgs{
 		t.GlobalPress(keys.Universal.PrevBlock)
 		t.Views().PrReview().IsFocused()
 
-		// `]` cycles WITHIN the PR Content window's tabs (Overview - Files Changed);
-		// it does NOT escape to the normal Worktrees/Submodules tabs.
-		t.GlobalPress(keys.Universal.NextTab)
-		t.Views().PrOverview().
-			IsFocused().
-			Title(Equals("Overview"))
-
-		// Wrapping back lands on Files Changed again, confirming the window has
-		// exactly its two review tabs.
+		// PR Content now has a single tab (Files Changed) — the Overview moved to the
+		// PR list window's hover preview (Phase 13). `]` / `[` therefore stay on Files
+		// Changed and never escape into the normal Worktrees/Submodules tabs.
 		t.GlobalPress(keys.Universal.NextTab)
 		t.Views().PrReview().IsFocused()
-
-		// `[` (previous tab) cycles the other way, still inside PR Content — it does
-		// not escape backwards into a normal window either.
-		t.GlobalPress(keys.Universal.PrevTab)
-		t.Views().PrOverview().IsFocused()
 		t.GlobalPress(keys.Universal.PrevTab)
 		t.Views().PrReview().IsFocused()
 
-		// `2` jumps to the PR Content window (panel [2]); its currently-on-top tab is
-		// Files Changed.
+		// `2` jumps to the PR Content window (panel [2]); its only tab is Files Changed.
 		t.GlobalPress(keys.Universal.JumpToBlock[1])
 		t.Views().PrReview().IsFocused()
 

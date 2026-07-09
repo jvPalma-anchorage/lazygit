@@ -259,3 +259,62 @@ func TestRenderReviewerDetail_ResolvedAndOutdatedShowsBoth(t *testing.T) {
 	assert.Contains(t, out, testTr().PrReviewResolvedBadge)
 	assert.Contains(t, out, testTr().PrReviewOutdatedBadge)
 }
+
+func TestRenderReviewFileDiffTagsThreadRows(t *testing.T) {
+	diff := "--- a/a.go\n+++ b/a.go\n@@ -1,2 +1,2 @@\n context\n+added line\n"
+	rendered := RenderReviewFileDiff(ReviewFileDiffOpts{
+		Tr:    i18n.EnglishTranslationSet(),
+		Path:  "a.go",
+		Diff:  diff,
+		Width: 80,
+		Threads: []models.ReviewThread{
+			{
+				ID: "T_TAG", Path: "a.go", Line: 2, Side: "RIGHT",
+				Comments: []models.ReviewComment{{DatabaseID: 1, Author: "alice", Body: "watch out"}},
+			},
+		},
+	})
+
+	assert.Equal(t, len(rendered.RowKind), len(rendered.RowThreadID),
+		"RowThreadID must stay parallel to RowKind")
+
+	// Every comment row carries the thread's node ID; every non-comment row is "".
+	taggedRows := 0
+	for i, kind := range rendered.RowKind {
+		if kind == ReviewRowComment {
+			assert.Equal(t, "T_TAG", rendered.RowThreadID[i], "comment row %d untagged", i)
+			taggedRows++
+		} else {
+			assert.Equal(t, "", rendered.RowThreadID[i], "non-comment row %d has a thread tag", i)
+		}
+	}
+	assert.Greater(t, taggedRows, 0, "the thread block must have rendered")
+}
+
+// Outdated threads land in the trailing section through the same block renderer —
+// their rows must be tagged too, or they'd be visible but not selectable.
+func TestRenderReviewFileDiffTagsTrailingThreadRows(t *testing.T) {
+	diff := "--- a/a.go\n+++ b/a.go\n@@ -1,1 +1,1 @@\n context\n"
+	rendered := RenderReviewFileDiff(ReviewFileDiffOpts{
+		Tr:    i18n.EnglishTranslationSet(),
+		Path:  "a.go",
+		Diff:  diff,
+		Width: 80,
+		Threads: []models.ReviewThread{
+			{
+				ID: "T_OUTDATED", Path: "a.go", Line: 0, IsOutdated: true, Side: "RIGHT",
+				DiffHunk: "@@ -10,1 +10,1 @@\n-old\n+new",
+				Comments: []models.ReviewComment{{DatabaseID: 5, Author: "bob", Body: "stale note"}},
+			},
+		},
+	})
+
+	tagged := 0
+	for i, kind := range rendered.RowKind {
+		if rendered.RowThreadID[i] == "T_OUTDATED" {
+			tagged++
+			assert.Equal(t, ReviewRowComment, kind)
+		}
+	}
+	assert.Greater(t, tagged, 0, "the trailing thread's rows must carry its ID")
+}

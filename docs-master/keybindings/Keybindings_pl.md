@@ -50,6 +50,18 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` ] `` | Następna zakładka |  |
 | `` [ `` | Poprzednia zakładka |  |
 
+## Checks
+
+| Key | Action | Info |
+|-----|--------|-------------|
+| `` <enter> `` | Expand/collapse workflow or view check logs |  |
+
+## Commits
+
+| Key | Action | Info |
+|-----|--------|-------------|
+| `` <enter> `` | Focus the commit's changes in the main view |  |
+
 ## Commity
 
 | Key | Action | Info |
@@ -200,11 +212,15 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` <space> `` | Toggle reviewed |  |
 | `` t `` | Toggle unified / side-by-side diff |  |
 | `` d `` | View PR description |  |
+| `` G `` | Show/hide generated files |  |
 | `` R `` | Refresh pull request |  |
+| `` S `` | Submit review |  |
 | `` 0 `` | Focus main view |  |
 | `` / `` | Filtruj bieżący widok po tekście |  |
 | `` <space> `` | Zaznacz zakres w dół |  |
 | `` c `` | Add review comment |  |
+| `` t `` | Resolve/unresolve the selected thread |  |
+| `` C `` | Add comment to pending review |  |
 | `` <esc> `` | Wróć do panelu plików |  |
 
 ## Panel główny (normalny)
@@ -327,6 +343,8 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 
 | Key | Action | Info |
 |-----|--------|-------------|
+| `` <enter> `` | Scroll the overview |  |
+| `` <space> `` | Start reviewing this pull request |  |
 | `` / `` | Filtruj bieżący widok po tekście |  |
 
 ## Schowek

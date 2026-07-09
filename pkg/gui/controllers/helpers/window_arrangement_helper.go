@@ -485,7 +485,14 @@ func sidePanelChildren(args WindowArrangementArgs) func(width int, height int) [
 					return &boxlayout.Box{Window: "status", Size: 3}
 				case "stash":
 					return accordionBox(getDefaultStashWindowBox(args))
-				default: // files, branches, commits (and the review windows)
+				case "prList":
+					// The PR browser collapses to a single line when unfocused, giving
+					// the content and activity windows the height (Phase 13.5).
+					if args.CurrentSideWindow == "prList" {
+						return &boxlayout.Box{Window: "prList", Weight: 1}
+					}
+					return &boxlayout.Box{Window: "prList", Size: 1}
+				default: // files, branches, commits (and the review content/activity windows)
 					return accordionBox(&boxlayout.Box{Window: window, Weight: 1})
 				}
 			})

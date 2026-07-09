@@ -1,6 +1,8 @@
 package context
 
 import (
+	"sort"
+
 	"github.com/jesseduffield/lazygit/pkg/commands/models"
 	"github.com/jesseduffield/lazygit/pkg/gui/style"
 	"github.com/jesseduffield/lazygit/pkg/gui/types"
@@ -84,6 +86,13 @@ func (self *PrConversationContext) Load() {
 		reviewer := r
 		return &reviewer
 	})
+	// The current user's own row goes first (stable order for the rest), so their
+	// review activity is one keypress away.
+	if data.ViewerLogin != "" {
+		sort.SliceStable(self.reviewers, func(i, j int) bool {
+			return self.reviewers[i].Login == data.ViewerLogin && self.reviewers[j].Login != data.ViewerLogin
+		})
+	}
 	self.c.PostRefreshUpdate(self)
 }
 

@@ -41,6 +41,24 @@ type PrReviewContext struct {
 	// per review session (reset by Reload after a write).
 	loadStarted bool
 
+	// bypassCacheOnce forces the next load to skip the warm-cache render (manual
+	// refresh semantics — D3.1: `R` always hits GitHub). Cleared by startLoad.
+	bypassCacheOnce bool
+
+	// loadGeneration invalidates in-flight loads: Retarget bumps it, and a worker
+	// whose captured generation no longer matches abandons its work instead of
+	// applying another PR's data (codex review finding: retarget mid-flight).
+	loadGeneration int
+
+	// pendingComments accumulates comments for a grouped review submission (Phase
+	// 7): added from the diff surface, submitted as ONE review (with a summary body
+	// and an event) from the tree, then cleared. Session-scoped, in memory only.
+	// They deliberately survive a Reload: if the head moved and a line no longer
+	// anchors, GitHub's 422 is surfaced at submit time and the queue is retained,
+	// so no typed text is ever silently discarded. Retarget clears them (they
+	// belong to the abandoned PR).
+	pendingComments []git_commands.PendingReviewComment
+
 	// reloadDone, when set by ReloadThen, fires once after the next reload's data is
 	// applied (e.g. so the focused diff surface re-renders to show a just-posted
 	// comment). Cleared after firing.
@@ -134,7 +152,7 @@ func NewPrReviewContext(c *ContextCommon) *PrReviewContext {
 			return [][]string{{style.FgRed.Sprint(c.Tr.PrReviewNoChangedFiles)}}
 		}
 		showFileIcons := icons.IsIconEnabled() && c.UserConfig().Gui.ShowFileIcons
-		lines := presentation.RenderPrReviewFileTree(viewModel, self.reviewed, showFileIcons, &c.UserConfig().Gui.CustomIcons, c.Tr)
+		lines := presentation.RenderPrReviewFileTree(viewModel, self.reviewed, self.unresolvedThreadPaths(), showFileIcons, &c.UserConfig().Gui.CustomIcons)
 		return lo.Map(lines, func(line string, _ int) []string {
 			return []string{line}
 		})
@@ -211,7 +229,7 @@ func (self *PrReviewContext) startLoad() {
 			self.loadErr = err
 		} else if useLocalRefs {
 			// Refs already exist in the test repo; never fetch over the network.
-			mergeBase, files, err := self.loadLocalRefModel(false)
+			mergeBase, files, err := self.loadLocalRefModel(self.target.number, nil)
 			if err != nil {
 				self.loadErr = err
 			} else {
@@ -224,28 +242,97 @@ func (self *PrReviewContext) startLoad() {
 	}
 
 	target := self.target
+	store := git_commands.NewReviewSnapshotStore(config.ConfigDir(), target.owner, target.repo, target.number)
+	bypassCache := self.bypassCacheOnce
+	self.bypassCacheOnce = false
+	generation := self.loadGeneration
+
 	self.c.OnWorker(func(_ gocui.Task) error {
+		bootStart := time.Now()
+
+		// Warm path (D3.1): render the whole workspace from the on-disk snapshots
+		// immediately when they are valid for the refs we already hold locally, then
+		// revalidate in the background. `R` (refresh) sets bypassCache so a manual
+		// refresh always hits GitHub.
+		warmApplied := false
+		if useLocalRefs && !bypassCache {
+			warmApplied = self.applyCachedSnapshots(store, target)
+		}
+		if warmApplied {
+			self.c.Log.Infof("pr-review boot: warm render from cache in %s (%s)", time.Since(bootStart), store.Dir())
+			// Test/airplane seam: with a valid warm cache, skip the background
+			// revalidation entirely so tests can prove the render path needs no
+			// network.
+			if os.Getenv("LAZYGIT_PR_REVIEW_OFFLINE") != "" {
+				self.c.OnUIThread(func() error {
+					self.finishReload()
+					return nil
+				})
+				return nil
+			}
+		}
+
 		// Host is github.com in v1 (gh-dash launches against github.com).
 		token := self.c.Git().GitHub.GetAuthToken("github.com")
 
+		graphqlStart := time.Now()
 		data, dataErr := self.c.Git().GitHub.FetchPRReviewData(target.owner, target.repo, target.number, token)
+		graphqlDur := time.Since(graphqlStart)
 		var files []*models.GithubPullRequestFile
 		var filesErr error
 		var localBase string
 		var localFiles []git_commands.ReviewChangedFile
 		var localErr error
+		refsStart := time.Now()
 		if dataErr == nil {
 			if useLocalRefs {
 				// Production local-ref path: fetch the PR's base+head into the
-				// isolated namespace, verify the merge-base, list the changed files.
-				self.data = data
-				localBase, localFiles, localErr = self.loadLocalRefModel(true)
+				// isolated namespace (skipped per side when the refs already point
+				// at the wanted OIDs), verify the merge-base, list the changed files.
+				// Everything the worker needs travels via captured locals — the
+				// context's fields are only ever written on the UI thread.
+				localBase, localFiles, localErr = self.loadLocalRefModel(target.number, data)
 			} else {
 				files, filesErr = self.c.Git().GitHub.FetchPRChangedFiles(target.owner, target.repo, target.number, token)
 			}
 		}
+		self.c.Log.Infof("pr-review boot: graphql=%s refs+diff=%s total=%s (warm=%v)",
+			graphqlDur, time.Since(refsStart), time.Since(bootStart), warmApplied)
+
+		// Persist fresh snapshots (only on full success, so the cache never holds a
+		// half-fetched state). Failures are logged, never surfaced — the cache is an
+		// accelerator, not a dependency.
+		if useLocalRefs && dataErr == nil && localErr == nil {
+			if err := store.Write("meta", data.HeadRefOid, data); err != nil {
+				self.c.Log.Warnf("pr-review cache: writing meta snapshot: %v", err)
+			}
+			if err := store.Write("files", data.HeadRefOid, reviewFilesSnapshot{BaseRefOid: data.BaseRefOid, MergeBase: localBase, Files: localFiles}); err != nil {
+				self.c.Log.Warnf("pr-review cache: writing files snapshot: %v", err)
+			}
+		}
 
 		self.c.OnUIThread(func() error {
+			if generation != self.loadGeneration {
+				// A Retarget superseded this load; dropping it keeps the new PR's
+				// state from being overwritten by the old PR's result.
+				return nil
+			}
+			loadFailed := dataErr != nil || localErr != nil || filesErr != nil
+			if warmApplied && loadFailed {
+				// The warm render already gave the user a working workspace; a
+				// failed background revalidation (offline, rate-limited) must not
+				// replace it with an error screen — surface it as a toast instead.
+				firstErr := dataErr
+				if firstErr == nil {
+					firstErr = localErr
+				}
+				if firstErr == nil {
+					firstErr = filesErr
+				}
+				self.c.ErrorToast(fmt.Sprintf(self.c.Tr.PrReviewRevalidateFailed, firstErr.Error()))
+				self.finishReload()
+				return nil
+			}
 			switch {
 			case dataErr != nil:
 				self.loadErr = dataErr
@@ -272,6 +359,54 @@ func (self *PrReviewContext) startLoad() {
 	})
 }
 
+// reviewFilesSnapshot is the payload of the "files" cache snapshot: the resolved
+// merge-base plus the changed-file set with blob OIDs — everything applyLocalRefModel
+// needs to rebuild the tree without git or network work. BaseRefOid pairs the
+// snapshot with the base it was diffed against: the envelope's headRefOid alone can't
+// catch a base branch that moved while the head stayed put (codex review finding).
+type reviewFilesSnapshot struct {
+	BaseRefOid string
+	MergeBase  string
+	Files      []git_commands.ReviewChangedFile
+}
+
+// applyCachedSnapshots renders the workspace from the on-disk snapshots when they are
+// coherent: meta and files captured at the same head OID, and the local review refs
+// still pointing at the snapshot's OIDs (so diffs/commits render from the object
+// store). Returns false on any mismatch — a cold boot, never an error. Runs on the
+// worker; the apply hops to the UI thread.
+func (self *PrReviewContext) applyCachedSnapshots(store *git_commands.ReviewSnapshotStore, target prReviewTarget) bool {
+	var cachedData git_commands.PullRequestReviewData
+	metaOid, _, ok := store.Read("meta", &cachedData)
+	if !ok || metaOid == "" || metaOid != cachedData.HeadRefOid {
+		return false
+	}
+	var cachedFiles reviewFilesSnapshot
+	filesOid, _, ok := store.Read("files", &cachedFiles)
+	if !ok || filesOid != metaOid || cachedFiles.BaseRefOid != cachedData.BaseRefOid {
+		return false
+	}
+
+	gh := self.c.Git().GitHub
+	if gh.ReviewRefOid(git_commands.ReviewHeadRef(target.number)) != cachedData.HeadRefOid ||
+		gh.ReviewRefOid(git_commands.ReviewBaseRef(target.number)) != cachedData.BaseRefOid {
+		return false
+	}
+
+	generation := self.loadGeneration
+	self.c.OnUIThread(func() error {
+		if generation != self.loadGeneration {
+			return nil
+		}
+		self.loadErr = nil
+		self.data = &cachedData
+		self.applyLocalRefModel(cachedFiles.MergeBase, cachedFiles.Files)
+		self.rerender()
+		return nil
+	})
+	return true
+}
+
 // localRefModeEnabled reports whether the changed-file tree and diff should be
 // sourced from the local-ref spine (DW2 / Phase 2) rather than the legacy gh-API
 // patch path. Production review sessions always use local refs; the legacy
@@ -291,20 +426,16 @@ func (self *PrReviewContext) localRefModeEnabled() bool {
 // then resolve the merge-base and list the changed files between it and the head.
 // It runs blocking git commands and so must be called off the UI thread (or
 // synchronously from a test).
-func (self *PrReviewContext) loadLocalRefModel(doFetch bool) (string, []git_commands.ReviewChangedFile, error) {
+func (self *PrReviewContext) loadLocalRefModel(pr int, fetchFor *git_commands.PullRequestReviewData) (string, []git_commands.ReviewChangedFile, error) {
 	gh := self.c.Git().GitHub
-	pr := self.target.number
 
-	if doFetch {
-		if self.data == nil {
-			return "", nil, fmt.Errorf("%s", self.c.Tr.PrReviewLoading)
-		}
+	if fetchFor != nil {
 		// Prune review refs older than the retention window before fetching new ones
 		// (D1.3). Best-effort: a prune failure must never block the review session.
 		if err := gh.PruneStaleReviewRefs(time.Now().Unix(), reviewRefRetentionDays); err != nil {
 			self.c.Log.Errorf("pruning stale review refs: %v", err)
 		}
-		if err := gh.FetchReviewRefs(pr, self.data.HeadRepoURL, self.data.HeadRefOid, self.data.BaseRepoURL, self.data.BaseRefOid); err != nil {
+		if err := gh.FetchReviewRefs(pr, fetchFor.HeadRepoURL, fetchFor.HeadRefOid, fetchFor.BaseRepoURL, fetchFor.BaseRefOid); err != nil {
 			return "", nil, err
 		}
 	}
@@ -446,6 +577,14 @@ func (self *PrReviewContext) refreshScopedActivityTabs() {
 	}
 	if ctx, ok := self.c.ContextForKey(PR_CONVERSATION_CONTEXT_KEY).(*PrConversationContext); ok {
 		ctx.Reload()
+	}
+	if ctx, ok := self.c.ContextForKey(PR_CHECKS_CONTEXT_KEY).(*PrChecksContext); ok {
+		ctx.Reload()
+	}
+	// The PR list's launched row is created before the title is known; refresh it
+	// now that the data has arrived.
+	if ctx, ok := self.c.ContextForKey(PR_LIST_CONTEXT_KEY).(*PrListContext); ok {
+		ctx.RefreshLaunchedTitle()
 	}
 }
 
@@ -711,6 +850,53 @@ func (self *PrReviewContext) SelectedFileDiff(width int) (*presentation.Rendered
 	return rendered, path, patchStr
 }
 
+// unresolvedThreadPaths is the set of changed-file paths that carry at least one
+// unresolved review thread, for the tree's 💬 marker.
+func (self *PrReviewContext) unresolvedThreadPaths() map[string]bool {
+	result := map[string]bool{}
+	if self.data == nil {
+		return result
+	}
+	for i := range self.data.Threads {
+		t := &self.data.Threads[i]
+		if !t.IsResolved && t.Path != "" {
+			result[t.Path] = true
+		}
+	}
+	return result
+}
+
+// SelectedFileHasThreads reports whether the file under the cursor has any review
+// thread (any author, resolved or not). The hover preview uses this to decide between
+// the pager (clean delta, no comments) and the inline presenter (comments interleaved).
+func (self *PrReviewContext) SelectedFileHasThreads() bool {
+	if self.data == nil {
+		return false
+	}
+	path := self.selectedFilePath()
+	if path == "" {
+		return false
+	}
+	for i := range self.data.Threads {
+		if self.data.Threads[i].Path == path {
+			return true
+		}
+	}
+	return false
+}
+
+// RenderSelectedFileInlineDiff renders the cursor file's diff with EVERY reviewer's
+// threads interleaved (not just the current user's), for the hover preview of a file
+// that has comments. Works in both local-ref and legacy modes. Empty when the cursor
+// is not on a file.
+func (self *PrReviewContext) RenderSelectedFileInlineDiff(width int) string {
+	rendered, _, _ := self.SelectedFileDiff(width)
+	if rendered == nil {
+		return ""
+	}
+	return rendered.Content
+}
+
 // RenderConversation renders the PR's global (issue-level) comments and reviewers
 // for the secondary main view. Returns an empty string before data is loaded.
 func (self *PrReviewContext) RenderConversation(width int) string {
@@ -726,24 +912,48 @@ func (self *PrReviewContext) RenderConversation(width int) string {
 	)
 }
 
-// ToggleReviewedForSelectedFile flips the session-scoped reviewed flag for the file
-// the cursor is on (design D8) and re-renders so both the tree marker and the diff
-// header update. The reviewed set is in-memory only and orthogonal to the git index.
+// ToggleReviewedForSelectedFile flips the viewed flag for the cursor selection
+// (design D8) and re-renders so the tree colors and diff header update. On a FILE it
+// toggles that file; on a FOLDER it toggles every changed file underneath as a group —
+// if they are all already viewed the folder is unviewed, otherwise the whole folder is
+// marked viewed (so one press clears a partially-viewed folder to fully viewed).
 func (self *PrReviewContext) ToggleReviewedForSelectedFile() {
-	path := self.selectedFilePath()
-	if path == "" {
+	node := self.GetSelected()
+	if node == nil {
 		return
 	}
 	if self.reviewed == nil {
 		self.reviewed = map[string]bool{}
 	}
-	nowViewed := !self.reviewed[path]
-	self.reviewed[path] = nowViewed
-	// In local-ref mode the mark is persisted to AppState (keyed by blob OID) so it
-	// survives restarts and auto-clears when the file changes. The legacy gh-API path
-	// keeps its session-only in-memory mark.
-	if self.localRefsActive {
-		self.persistReviewed(path, nowViewed)
+
+	// ForEachFile yields the single file for a file node, or every descendant file
+	// for a folder node — so both cases share one path.
+	var paths []string
+	_ = node.ForEachFile(func(f *models.CommitFile) error {
+		paths = append(paths, f.Path)
+		return nil
+	})
+	if len(paths) == 0 {
+		return
+	}
+
+	allViewed := true
+	for _, p := range paths {
+		if !self.reviewed[p] {
+			allViewed = false
+			break
+		}
+	}
+	nowViewed := !allViewed
+
+	for _, p := range paths {
+		self.reviewed[p] = nowViewed
+		// In local-ref mode the mark is persisted to AppState (keyed by blob OID) so it
+		// survives restarts and auto-clears when the file changes. The legacy gh-API
+		// path keeps its session-only in-memory mark.
+		if self.localRefsActive {
+			self.persistReviewed(p, nowViewed)
+		}
 	}
 	self.rerender()
 }
@@ -810,9 +1020,58 @@ func (self *PrReviewContext) IsPathViewed(path string) bool {
 	return self.reviewed[path]
 }
 
+// Retarget points the whole review workspace at a different pull request (selected
+// from the PR list window) and reloads: all per-PR state — data, tree, viewed marks,
+// pending review comments, local-ref bookkeeping — is reset so nothing leaks across
+// PRs, then the standard load path (warm cache included) runs for the new target.
+func (self *PrReviewContext) Retarget(owner string, repo string, number int) {
+	self.loadGeneration++
+	self.target = prReviewTarget{owner: owner, repo: repo, number: number}
+	self.data = nil
+	self.files = nil
+	self.loadErr = nil
+	self.localRefsActive = false
+	self.localBase = ""
+	self.localHeadRef = ""
+	self.localFiles = nil
+	self.syntheticFiles = nil
+	self.fileByPath = map[string]*models.GithubPullRequestFile{}
+	self.fileOidByPath = map[string]string{}
+	self.fileStatusByPath = map[string]string{}
+	self.patchHashByPath = map[string]string{}
+	self.reviewed = map[string]bool{}
+	self.pendingComments = nil
+	self.hiddenGeneratedCount = 0
+	self.showGenerated = false
+	self.SetTree()
+	self.refreshScopedActivityTabs()
+	self.loadStarted = false
+	self.startLoad()
+	self.rerender()
+}
+
+// AddPendingComment queues a comment for the grouped review submission and returns
+// the new pending count.
+func (self *PrReviewContext) AddPendingComment(comment git_commands.PendingReviewComment) int {
+	self.pendingComments = append(self.pendingComments, comment)
+	return len(self.pendingComments)
+}
+
+// PendingComments returns the accumulated (not yet submitted) review comments.
+func (self *PrReviewContext) PendingComments() []git_commands.PendingReviewComment {
+	return self.pendingComments
+}
+
+// ClearPendingComments empties the pending queue (after a successful submission).
+func (self *PrReviewContext) ClearPendingComments() {
+	self.pendingComments = nil
+}
+
 // Reload re-fetches the review data (e.g. after a write) so new comments appear.
+// A reload is an explicit "give me fresh data" action, so it bypasses the warm cache.
 func (self *PrReviewContext) Reload() {
 	self.loadStarted = false
+	self.bypassCacheOnce = true
 	self.startLoad()
 }
 
@@ -822,6 +1081,7 @@ func (self *PrReviewContext) Reload() {
 func (self *PrReviewContext) ReloadThen(onDone func()) {
 	self.reloadDone = onDone
 	self.loadStarted = false
+	self.bypassCacheOnce = true
 	self.startLoad()
 }
 

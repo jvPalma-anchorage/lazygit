@@ -50,6 +50,18 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` ] `` | 下一个标签 |  |
 | `` [ `` | 上一个标签 |  |
 
+## Checks
+
+| Key | Action | Info |
+|-----|--------|-------------|
+| `` <enter> `` | Expand/collapse workflow or view check logs |  |
+
+## Commits
+
+| Key | Action | Info |
+|-----|--------|-------------|
+| `` <enter> `` | Focus the commit's changes in the main view |  |
+
 ## PR Review
 
 | Key | Action | Info |
@@ -58,17 +70,23 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` <space> `` | Toggle reviewed |  |
 | `` t `` | Toggle unified / side-by-side diff |  |
 | `` d `` | View PR description |  |
+| `` G `` | Show/hide generated files |  |
 | `` R `` | Refresh pull request |  |
+| `` S `` | Submit review |  |
 | `` 0 `` | 聚焦主视图 |  |
 | `` / `` | 通过文本过滤当前视图 |  |
 | `` <space> `` | 向下扩展选择范围 |  |
 | `` c `` | Add review comment |  |
+| `` t `` | Resolve/unresolve the selected thread |  |
+| `` C `` | Add comment to pending review |  |
 | `` <esc> `` | 返回文件面板 |  |
 
 ## Pull Requests
 
 | Key | Action | Info |
 |-----|--------|-------------|
+| `` <enter> `` | Scroll the overview |  |
+| `` <space> `` | Start reviewing this pull request |  |
 | `` / `` | 通过文本过滤当前视图 |  |
 
 ## 子提交

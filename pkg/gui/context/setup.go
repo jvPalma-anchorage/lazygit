@@ -32,19 +32,10 @@ func NewContextTree(c *ContextCommon) *ContextTree {
 		PullRequests: NewPullRequestsContext(c),
 		PrReview:     NewPrReviewContext(c),
 		PrReviewDiff: NewPrReviewDiffContext(c),
-		// PR review workspace stub contexts. Phase 1 only proves the dedicated
-		// layout (own windows/tabs/panel numbers); the real data lands in later
-		// phases. prContent hosts the Overview tab here plus the rehomed PrReview
+		// PR review workspace contexts. prList carries the launched PR + gh-dash
+		// sections; prContent hosts the Overview tab plus the rehomed PrReview
 		// (Files Changed) tab; prActivity hosts Conversation/Checks/Commits.
-		PrList: NewSimpleContext(
-			NewBaseContext(NewBaseContextOpts{
-				Kind:       types.SIDE_CONTEXT,
-				View:       c.Views().PrList,
-				WindowName: "prList",
-				Key:        PR_LIST_CONTEXT_KEY,
-				Focusable:  true,
-			}),
-		),
+		PrList: NewPrListContext(c),
 		PrOverview: NewSimpleContext(
 			NewBaseContext(NewBaseContextOpts{
 				Kind:       types.SIDE_CONTEXT,
@@ -54,16 +45,8 @@ func NewContextTree(c *ContextCommon) *ContextTree {
 				Focusable:  true,
 			}),
 		),
-		PrConversation: NewPrConversationContext(c),
-		PrChecks: NewSimpleContext(
-			NewBaseContext(NewBaseContextOpts{
-				Kind:       types.SIDE_CONTEXT,
-				View:       c.Views().PrChecks,
-				WindowName: "prActivity",
-				Key:        PR_CHECKS_CONTEXT_KEY,
-				Focusable:  true,
-			}),
-		),
+		PrConversation:  NewPrConversationContext(c),
+		PrChecks:        NewPrChecksContext(c),
 		PrCommits:       NewPrCommitsContext(c),
 		Worktrees:       NewWorktreesContext(c),
 		RemoteBranches:  NewRemoteBranchesContext(c),

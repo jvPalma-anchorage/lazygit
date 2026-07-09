@@ -60,13 +60,33 @@ func (self *GitHubCommands) FetchReviewRefCmdObj(repoURL string, oid string, des
 // fetched by its own URL. A failure on either side is returned immediately so the
 // caller can fail fast rather than render a half-populated diff.
 func (self *GitHubCommands) FetchReviewRefs(prNumber int, headURL string, headOid string, baseURL string, baseOid string) error {
-	if err := self.FetchReviewRefCmdObj(baseURL, baseOid, ReviewBaseRef(prNumber)).Run(); err != nil {
-		return fmt.Errorf("fetching PR base into %s: %w", ReviewBaseRef(prNumber), err)
+	// Skip the network entirely for any side whose ref already points at the wanted
+	// OID (D3.1): a URL-fetch forces full negotiation on every run, which on a big
+	// monorepo dominates boot time — and after the first session it is pure waste,
+	// since these OIDs only move when the PR does.
+	if self.ReviewRefOid(ReviewBaseRef(prNumber)) != baseOid {
+		if err := self.FetchReviewRefCmdObj(baseURL, baseOid, ReviewBaseRef(prNumber)).Run(); err != nil {
+			return fmt.Errorf("fetching PR base into %s: %w", ReviewBaseRef(prNumber), err)
+		}
 	}
-	if err := self.FetchReviewRefCmdObj(headURL, headOid, ReviewHeadRef(prNumber)).Run(); err != nil {
-		return fmt.Errorf("fetching PR head into %s: %w", ReviewHeadRef(prNumber), err)
+	if self.ReviewRefOid(ReviewHeadRef(prNumber)) != headOid {
+		if err := self.FetchReviewRefCmdObj(headURL, headOid, ReviewHeadRef(prNumber)).Run(); err != nil {
+			return fmt.Errorf("fetching PR head into %s: %w", ReviewHeadRef(prNumber), err)
+		}
 	}
 	return nil
+}
+
+// ReviewRefOid returns the commit a review ref currently points at, or "" when the
+// ref does not exist. Used to skip redundant fetches and to validate cache snapshots
+// against the local object store.
+func (self *GitHubCommands) ReviewRefOid(ref string) string {
+	out, err := self.cmd.New(NewGitCmd("rev-parse").Arg("--verify", "--quiet", ref).ToArgv()).
+		DontLog().RunWithOutput()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(out)
 }
 
 // ReviewMergeBaseCmdObj builds `git merge-base <base> <head>`. Used both to verify

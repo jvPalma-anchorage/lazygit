@@ -102,6 +102,13 @@ type Review struct {
 	SubmittedAt string
 }
 
+// PrLabel is a pull-request label: its name and its GitHub hex color (no leading
+// '#', e.g. "d73a4a"), rendered as a colored chip in the Overview tab.
+type PrLabel struct {
+	Name  string
+	Color string
+}
+
 // GithubPullRequestFile is a file changed by a pull request, with its unified
 // diff Patch as returned by the REST pulls/{n}/files endpoint.
 type GithubPullRequestFile struct {

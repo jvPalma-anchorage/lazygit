@@ -13,6 +13,10 @@ import (
 // read back from AppState keyed by blob OID), then changes one file's content on the
 // head ref and refreshes again — proving that file's mark auto-clears (its blob OID
 // changed) while the untouched file stays viewed.
+// viewedGreen is tcell's ANSI green (style.FgGreen), the color a viewed file's name
+// is painted (mirroring lazygit's staged/unstaged coloring).
+const viewedGreen = "#008000"
+
 var PrReviewViewedState = NewIntegrationTest(NewIntegrationTestArgs{
 	Description:  "PR review: viewed marks persist across reload and auto-clear when a file's content changes",
 	ExtraCmdArgs: []string{"owner/repo", "7"},
@@ -51,28 +55,32 @@ var PrReviewViewedState = NewIntegrationTest(NewIntegrationTestArgs{
 		shell.CreateFile("pr_fixture.json", string(raw))
 	},
 	Run: func(t *TestDriver, keys config.KeybindingConfig) {
-		// Mark both files viewed ([ ] -> [x]); this persists to AppState.
+		// Mark both files viewed; the filename turns green (the viewed state is now a
+		// color, not a checkbox). This persists to AppState.
 		t.Views().PrReview().NavigateToLine(Contains("foo.txt"))
 		t.Views().PrReview().Press(keys.Universal.Select)
-		t.Views().PrReview().SelectedLine(Contains("[x]"))
+		t.Views().PrReview().ContainsColoredText(viewedGreen, "foo.txt")
 		t.Views().PrReview().NavigateToLine(Contains("bar.txt"))
 		t.Views().PrReview().Press(keys.Universal.Select)
-		t.Views().PrReview().SelectedLine(Contains("[x]"))
+		t.Views().PrReview().ContainsColoredText(viewedGreen, "bar.txt")
 
 		// Refresh without changing anything: both marks are restored from AppState
 		// (persistence — they would be lost if the marks were session-only).
 		t.Views().PrReview().Press(keys.Universal.Refresh)
-		t.Views().PrReview().NavigateToLine(Contains("foo.txt")).SelectedLine(Contains("[x]"))
-		t.Views().PrReview().NavigateToLine(Contains("bar.txt")).SelectedLine(Contains("[x]"))
+		t.Views().PrReview().
+			ContainsColoredText(viewedGreen, "foo.txt").
+			ContainsColoredText(viewedGreen, "bar.txt")
 
 		// Change foo.txt's content on the head ref (a new commit), then refresh: foo's
-		// blob OID changed so its mark auto-clears, but bar (untouched) stays viewed.
+		// blob OID changed so its mark auto-clears (name no longer green), but bar
+		// (untouched) stays viewed.
 		t.Shell().CreateFileAndAdd("src/foo.txt", "alpha\nbeta\nFOO1\nFOO2\n")
 		t.Shell().Commit("update foo on head")
 		t.Shell().RunCommand([]string{"git", "update-ref", "refs/lazygit-review/7/head", "HEAD"})
 
 		t.Views().PrReview().Press(keys.Universal.Refresh)
-		t.Views().PrReview().NavigateToLine(Contains("foo.txt")).SelectedLine(Contains("[ ]"))
-		t.Views().PrReview().NavigateToLine(Contains("bar.txt")).SelectedLine(Contains("[x]"))
+		t.Views().PrReview().
+			DoesNotContainColoredText(viewedGreen, "foo.txt").
+			ContainsColoredText(viewedGreen, "bar.txt")
 	},
 })

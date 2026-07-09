@@ -37,12 +37,16 @@ const (
 type markdownRenderer func(body string, width int) string
 
 // RenderedReviewDiff is the output of the inline presenter: the final ANSI buffer
-// plus the parallel selection map (one entry per line of Content). RowKind and
-// RowPatchIdx are always the same length as the number of lines in Content.
+// plus the parallel selection maps (one entry per line of Content). RowKind,
+// RowPatchIdx and RowThreadID are always the same length as the number of lines in
+// Content. RowThreadID carries the review thread's GraphQL node ID on every row of
+// that thread's block ("" elsewhere), so the cursor can select a thread to reply to
+// or resolve (Phase 11).
 type RenderedReviewDiff struct {
 	Content     string
 	RowKind     []ReviewRowKind
 	RowPatchIdx []int
+	RowThreadID []string
 }
 
 // reviewDiffBuilder accumulates the rendered buffer and the parallel row maps in
@@ -51,13 +55,25 @@ type reviewDiffBuilder struct {
 	sb          strings.Builder
 	rowKind     []ReviewRowKind
 	rowPatchIdx []int
+	rowThreadID []string
 }
 
 func (b *reviewDiffBuilder) add(content string, kind ReviewRowKind, patchIdx int) {
+	b.addRow(content, kind, patchIdx, "")
+}
+
+// addThreadRow is add for rows belonging to a review-thread block: it tags the row
+// with the thread's node ID so it is selectable as that thread.
+func (b *reviewDiffBuilder) addThreadRow(content string, threadID string) {
+	b.addRow(content, ReviewRowComment, -1, threadID)
+}
+
+func (b *reviewDiffBuilder) addRow(content string, kind ReviewRowKind, patchIdx int, threadID string) {
 	b.sb.WriteString(content)
 	b.sb.WriteString("\n")
 	b.rowKind = append(b.rowKind, kind)
 	b.rowPatchIdx = append(b.rowPatchIdx, patchIdx)
+	b.rowThreadID = append(b.rowThreadID, threadID)
 }
 
 func (b *reviewDiffBuilder) result() *RenderedReviewDiff {
@@ -65,6 +81,7 @@ func (b *reviewDiffBuilder) result() *RenderedReviewDiff {
 		Content:     b.sb.String(),
 		RowKind:     b.rowKind,
 		RowPatchIdx: b.rowPatchIdx,
+		RowThreadID: b.rowThreadID,
 	}
 }
 
@@ -224,9 +241,9 @@ func appendCommentBlock(
 		author = th.Comments[0].Author
 	}
 
-	b.add(
+	b.addThreadRow(
 		style.FgCyan.Sprint("┌─ ")+style.FgMagenta.Sprint("@"+author)+" · "+badge,
-		ReviewRowComment, -1,
+		th.ID,
 	)
 
 	bodyWidth := max(width-len([]rune(reviewCommentPrefix)), 10)
@@ -240,15 +257,15 @@ func appendCommentBlock(
 			if c.ReplyToID != 0 {
 				label += " " + theme.DefaultTextColor.Sprint(tr.PrReviewReplyLabel)
 			}
-			b.add(border+label, ReviewRowComment, -1)
+			b.addThreadRow(border+label, th.ID)
 		}
 
 		for _, bodyLine := range renderBodyLines(c.Body, bodyWidth, renderMarkdown) {
-			b.add(border+bodyLine, ReviewRowComment, -1)
+			b.addThreadRow(border+bodyLine, th.ID)
 		}
 	}
 
-	b.add(style.FgCyan.Sprint("└"+strings.Repeat("─", max(width-1, 1))), ReviewRowComment, -1)
+	b.addThreadRow(style.FgCyan.Sprint("└"+strings.Repeat("─", max(width-1, 1))), th.ID)
 }
 
 // renderBodyLines turns a markdown body into display lines wrapped to width. When

@@ -29,6 +29,9 @@ var PrReviewConversation = NewIntegrationTest(NewIntegrationTestArgs{
 		}{
 			Data: &git_commands.PullRequestReviewData{
 				ID: "PR_9000", Number: 9000, Title: "Conversation PR", State: "OPEN", HeadRefOid: "head",
+				// bob is the authenticated viewer, so despite being listed second in
+				// the data his row must surface first.
+				ViewerLogin: "bob",
 				Reviewers: []models.Reviewer{
 					{Login: "alice", State: "APPROVED"},
 					{Login: "bob", State: "CHANGES_REQUESTED"},
@@ -61,13 +64,15 @@ var PrReviewConversation = NewIntegrationTest(NewIntegrationTestArgs{
 		// Jump to PR Activity (panel [3]); its default tab is Conversation.
 		t.GlobalPress(keys.Universal.JumpToBlock[2])
 
-		// 6.1: the reviewer list shows each reviewer with their state.
+		// 6.1: the reviewer list shows each reviewer with their state; the
+		// authenticated viewer (bob) is listed FIRST even though the data lists him
+		// second (10.2).
 		t.Views().PrConversation().
 			IsFocused().
-			ContainsLines(Contains("alice")).
-			ContainsLines(Contains("APPROVED")).
-			ContainsLines(Contains("bob")).
-			ContainsLines(Contains("CHANGES_REQUESTED"))
+			ContainsLines(
+				Contains("bob").Contains("CHANGES_REQUESTED"),
+				Contains("alice").Contains("APPROVED"),
+			)
 
 		// 6.2: selecting alice shows only alice's contributions.
 		t.Views().PrConversation().NavigateToLine(Contains("alice"))
