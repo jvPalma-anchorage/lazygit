@@ -56,7 +56,13 @@ var runeReplacements = map[rune]string{
 func (g *Gui) tcellInit(runeReplacements map[rune]string) error {
 	tcell.SetEncodingFallback(tcell.EncodingFallbackASCII)
 
-	s, e := tcell.NewScreen()
+	tty, e := tcell.NewDevTty()
+	if e != nil {
+		return e
+	}
+	colorSchemeTty := newColorSchemeTty(tty)
+
+	s, e := tcell.NewTerminfoScreenFromTty(colorSchemeTty)
 	if e != nil {
 		return e
 	}
@@ -68,6 +74,7 @@ func (g *Gui) tcellInit(runeReplacements map[rune]string) error {
 	registerRuneFallbacks(s, runeReplacements)
 
 	g.screen = s
+	g.colorSchemeTty = colorSchemeTty
 	Screen = s
 	return nil
 }
@@ -172,6 +179,12 @@ type GocuiEvent struct {
 	Focused bool
 	Start   bool
 	N       int
+
+	// task tracks the processing of this event for idle detection. Events
+	// replayed by integration tests carry a task from the moment they are
+	// submitted (see Gui.ReplayKeyEvent); for organic events it is nil, and
+	// the main loop creates a task when it picks the event up.
+	task Task
 }
 
 // Event types.
@@ -208,6 +221,8 @@ type TcellKeyEventWrapper struct {
 	Mod       tcell.ModMask
 	Key       tcell.Key
 	Ch        string
+
+	task Task // see GocuiEvent.task
 }
 
 func NewTcellKeyEventWrapper(event *tcell.EventKey, timestamp int64) *TcellKeyEventWrapper {
@@ -229,6 +244,8 @@ type TcellMouseEventWrapper struct {
 	Y          int
 	ButtonMask tcell.ButtonMask
 	ModMask    tcell.ModMask
+
+	task Task // see GocuiEvent.task
 }
 
 func NewTcellMouseEventWrapper(event *tcell.EventMouse, timestamp int64) *TcellMouseEventWrapper {
@@ -266,22 +283,52 @@ func (wrapper TcellResizeEventWrapper) toTcellEvent() tcell.Event {
 	return tcell.NewEventResize(wrapper.Width, wrapper.Height)
 }
 
+type TcellFocusEventWrapper struct {
+	Timestamp int64
+	Focused   bool
+
+	task Task // see GocuiEvent.task
+}
+
+func NewTcellFocusEventWrapper(event *tcell.EventFocus, timestamp int64) *TcellFocusEventWrapper {
+	return &TcellFocusEventWrapper{
+		Timestamp: timestamp,
+		Focused:   event.Focused,
+	}
+}
+
+func (wrapper TcellFocusEventWrapper) toTcellEvent() tcell.Event {
+	return tcell.NewEventFocus(wrapper.Focused)
+}
+
 // pollEvent get tcell.Event and transform it into gocuiEvent
 func (g *Gui) pollEvent() GocuiEvent {
 	var tev tcell.Event
+	var task Task
 	if g.playRecording {
 		select {
-		case ev := <-g.ReplayedEvents.Keys:
-			tev = (ev).toTcellEvent()
-		case ev := <-g.ReplayedEvents.Resizes:
-			tev = (ev).toTcellEvent()
-		case ev := <-g.ReplayedEvents.MouseEvents:
-			tev = (ev).toTcellEvent()
+		case ev := <-g.replayedEvents.Keys:
+			tev = ev.toTcellEvent()
+			task = ev.task
+		case ev := <-g.replayedEvents.Resizes:
+			tev = ev.toTcellEvent()
+		case ev := <-g.replayedEvents.MouseEvents:
+			tev = ev.toTcellEvent()
+			task = ev.task
+		case ev := <-g.replayedEvents.FocusEvents:
+			tev = ev.toTcellEvent()
+			task = ev.task
 		}
 	} else {
 		tev = <-Screen.EventQ()
 	}
 
+	event := gocuiEventFromTcellEvent(tev)
+	event.task = task
+	return event
+}
+
+func gocuiEventFromTcellEvent(tev tcell.Event) GocuiEvent {
 	switch tev := tev.(type) {
 	case *tcell.EventInterrupt:
 		return GocuiEvent{Type: eventInterrupt}
@@ -326,9 +373,17 @@ func (g *Gui) pollEvent() GocuiEvent {
 
 		// process button events (not wheel events)
 		button &= tcell.ButtonMask(0xff)
+		newButtonPress := false
+		buttonReleased := false
 		if button != tcell.ButtonNone && lastMouseKey == tcell.ButtonNone {
+			newButtonPress = true
 			lastMouseKey = button
+			// The keyboard modifiers held at press time apply to the whole gesture:
+			// the press, every drag event, and the release. Snapshotting them here
+			// keeps a modified press from producing events that match unmodified
+			// bindings, and ignores modifier changes while the button is held.
 			lastMouseMod = tev.Modifiers()
+			mouseMod = Modifier(lastMouseMod)
 			switch button {
 			case tcell.ButtonPrimary:
 				mouseKey = MouseLeft
@@ -346,6 +401,7 @@ func (g *Gui) pollEvent() GocuiEvent {
 		switch tev.Buttons() {
 		case tcell.ButtonNone:
 			if lastMouseKey != tcell.ButtonNone {
+				buttonReleased = true
 				switch lastMouseKey {
 				case tcell.ButtonPrimary:
 					dragState = NOT_DRAGGING
@@ -360,7 +416,7 @@ func (g *Gui) pollEvent() GocuiEvent {
 		default:
 		}
 
-		if !wheeling {
+		if !wheeling && !buttonReleased {
 			switch dragState {
 			case NOT_DRAGGING:
 				return GocuiEvent{
@@ -370,11 +426,25 @@ func (g *Gui) pollEvent() GocuiEvent {
 				}
 			// if we haven't released the left mouse button and we've moved the cursor then we're dragging
 			case MAYBE_DRAGGING:
-				if x != lastX || y != lastY {
-					dragState = DRAGGING
+				if x == lastX && y == lastY {
+					// Deliver the button press itself, but swallow held-button
+					// motion events within the same cell: they carry no new
+					// information, and if they fell through they would be
+					// delivered with the default MouseRelease key.
+					if !newButtonPress {
+						return GocuiEvent{Type: eventNone}
+					}
+					break
 				}
+				// The first movement is already part of the drag; give it the
+				// same key and modifier as the DRAGGING events below so it
+				// reaches drag bindings instead of being delivered with the
+				// default MouseRelease key.
+				dragState = DRAGGING
+				mouseMod = Modifier(lastMouseMod) | ModMotion
+				mouseKey = MouseLeft
 			case DRAGGING:
-				mouseMod = ModMotion
+				mouseMod = Modifier(lastMouseMod) | ModMotion
 				mouseKey = MouseLeft
 			}
 		}

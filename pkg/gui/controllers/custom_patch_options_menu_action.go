@@ -30,7 +30,7 @@ func (self *CustomPatchOptionsMenuAction) Call() error {
 		{
 			Label:   self.c.Tr.ResetPatch,
 			Tooltip: self.c.Tr.ResetPatchTooltip,
-			OnPress: self.c.Helpers().PatchBuilding.Reset,
+			OnPress: self.c.Helpers().CustomPatch.Reset,
 			Keys:    menuKey('c'),
 		},
 		{
@@ -123,46 +123,38 @@ func (self *CustomPatchOptionsMenuAction) getPatchCommitIndex() int {
 	return -1
 }
 
-func (self *CustomPatchOptionsMenuAction) returnFocusFromPatchExplorerIfNecessary() {
-	if self.c.Context().Current().GetKey() == self.c.Contexts().CustomPatchBuilder.GetKey() {
-		self.c.Helpers().PatchBuilding.Escape()
-	}
-}
-
 func (self *CustomPatchOptionsMenuAction) handleDeletePatchFromCommit() error {
-	self.returnFocusFromPatchExplorerIfNecessary()
-
+	commits := self.c.Model().Commits
+	commitIndex := self.getPatchCommitIndex()
 	return self.c.WithWaitingStatus(self.c.Tr.RebasingStatus, func(gocui.Task) error {
-		commitIndex := self.getPatchCommitIndex()
 		self.c.LogAction(self.c.Tr.Actions.RemovePatchFromCommit)
-		err := self.c.Git().Patch.DeletePatchesFromCommit(self.c.Model().Commits, commitIndex)
+		err := self.c.Git().Patch.DeletePatchesFromCommit(commits, commitIndex)
 		return self.c.Helpers().MergeAndRebase.CheckMergeOrRebase(err)
 	})
 }
 
 func (self *CustomPatchOptionsMenuAction) handleMovePatchToSelectedCommit() error {
-	self.returnFocusFromPatchExplorerIfNecessary()
-
+	commits := self.c.Model().Commits
+	commitIndex := self.getPatchCommitIndex()
+	toCommitIndex := self.c.Contexts().LocalCommits.GetSelectedLineIdx()
 	return self.c.WithWaitingStatus(self.c.Tr.RebasingStatus, func(gocui.Task) error {
-		commitIndex := self.getPatchCommitIndex()
 		self.c.LogAction(self.c.Tr.Actions.MovePatchToSelectedCommit)
-		err := self.c.Git().Patch.MovePatchToSelectedCommit(self.c.Model().Commits, commitIndex, self.c.Contexts().LocalCommits.GetSelectedLineIdx())
+		err := self.c.Git().Patch.MovePatchToSelectedCommit(commits, commitIndex, toCommitIndex)
 		return self.c.Helpers().MergeAndRebase.CheckMergeOrRebase(err)
 	})
 }
 
 func (self *CustomPatchOptionsMenuAction) handleMovePatchIntoWorkingTree() error {
-	self.returnFocusFromPatchExplorerIfNecessary()
-
 	mustStash := self.c.Helpers().WorkingTree.IsWorkingTreeDirtyExceptSubmodules()
 	return self.c.ConfirmIf(mustStash, types.ConfirmOpts{
 		Title:  self.c.Tr.MustStashTitle,
 		Prompt: self.c.Tr.MustStashWarning,
 		HandleConfirm: func() error {
+			commits := self.c.Model().Commits
+			commitIndex := self.getPatchCommitIndex()
 			return self.c.WithWaitingStatus(self.c.Tr.RebasingStatus, func(gocui.Task) error {
-				commitIndex := self.getPatchCommitIndex()
 				self.c.LogAction(self.c.Tr.Actions.MovePatchIntoIndex)
-				err := self.c.Git().Patch.MovePatchIntoIndex(self.c.Model().Commits, commitIndex, mustStash)
+				err := self.c.Git().Patch.MovePatchIntoIndex(commits, commitIndex, mustStash)
 				return self.c.Helpers().MergeAndRebase.CheckMergeOrRebase(err)
 			})
 		},
@@ -170,8 +162,6 @@ func (self *CustomPatchOptionsMenuAction) handleMovePatchIntoWorkingTree() error
 }
 
 func (self *CustomPatchOptionsMenuAction) handlePullPatchIntoNewCommit() error {
-	self.returnFocusFromPatchExplorerIfNecessary()
-
 	commitIndex := self.getPatchCommitIndex()
 	self.c.Helpers().Commits.OpenCommitMessagePanel(
 		&helpers.OpenCommitMessagePanelOpts{
@@ -183,14 +173,18 @@ func (self *CustomPatchOptionsMenuAction) handlePullPatchIntoNewCommit() error {
 			DescriptionTitle: self.c.Tr.CommitDescriptionTitle,
 			PreserveMessage:  false,
 			OnConfirm: func(summary string, description string) error {
+				commits := self.c.Model().Commits
+				self.c.Helpers().Commits.CloseCommitMessagePanel()
 				return self.c.WithWaitingStatus(self.c.Tr.RebasingStatus, func(gocui.Task) error {
-					self.c.Helpers().Commits.CloseCommitMessagePanel()
 					self.c.LogAction(self.c.Tr.Actions.MovePatchIntoNewCommit)
-					err := self.c.Git().Patch.PullPatchIntoNewCommit(self.c.Model().Commits, commitIndex, summary, description)
+					err := self.c.Git().Patch.PullPatchIntoNewCommit(commits, commitIndex, summary, description)
 					if err := self.c.Helpers().MergeAndRebase.CheckMergeOrRebase(err); err != nil {
 						return err
 					}
-					self.c.Context().Push(self.c.Contexts().LocalCommits, types.OnFocusOpts{})
+					self.c.OnUIThread(func() error {
+						self.c.Context().Push(self.c.Contexts().LocalCommits, types.OnFocusOpts{})
+						return nil
+					})
 					return nil
 				})
 			},
@@ -201,8 +195,6 @@ func (self *CustomPatchOptionsMenuAction) handlePullPatchIntoNewCommit() error {
 }
 
 func (self *CustomPatchOptionsMenuAction) handlePullPatchIntoNewCommitBefore() error {
-	self.returnFocusFromPatchExplorerIfNecessary()
-
 	commitIndex := self.getPatchCommitIndex()
 	self.c.Helpers().Commits.OpenCommitMessagePanel(
 		&helpers.OpenCommitMessagePanelOpts{
@@ -214,14 +206,18 @@ func (self *CustomPatchOptionsMenuAction) handlePullPatchIntoNewCommitBefore() e
 			DescriptionTitle: self.c.Tr.CommitDescriptionTitle,
 			PreserveMessage:  false,
 			OnConfirm: func(summary string, description string) error {
+				commits := self.c.Model().Commits
+				self.c.Helpers().Commits.CloseCommitMessagePanel()
 				return self.c.WithWaitingStatus(self.c.Tr.RebasingStatus, func(gocui.Task) error {
-					self.c.Helpers().Commits.CloseCommitMessagePanel()
 					self.c.LogAction(self.c.Tr.Actions.MovePatchIntoNewCommit)
-					err := self.c.Git().Patch.PullPatchIntoNewCommitBefore(self.c.Model().Commits, commitIndex, summary, description)
+					err := self.c.Git().Patch.PullPatchIntoNewCommitBefore(commits, commitIndex, summary, description)
 					if err := self.c.Helpers().MergeAndRebase.CheckMergeOrRebase(err); err != nil {
 						return err
 					}
-					self.c.Context().Push(self.c.Contexts().LocalCommits, types.OnFocusOpts{})
+					self.c.OnUIThread(func() error {
+						self.c.Context().Push(self.c.Contexts().LocalCommits, types.OnFocusOpts{})
+						return nil
+					})
 					return nil
 				})
 			},
@@ -232,8 +228,6 @@ func (self *CustomPatchOptionsMenuAction) handlePullPatchIntoNewCommitBefore() e
 }
 
 func (self *CustomPatchOptionsMenuAction) handleApplyPatch(reverse bool) error {
-	self.returnFocusFromPatchExplorerIfNecessary()
-
 	affectedUnstagedFiles := self.getAffectedUnstagedFiles()
 
 	mustStageFiles := len(affectedUnstagedFiles) > 0
@@ -257,7 +251,7 @@ func (self *CustomPatchOptionsMenuAction) handleApplyPatch(reverse bool) error {
 				return err
 			}
 
-			self.c.Refresh(types.RefreshOptions{Mode: types.ASYNC})
+			self.c.Refresh(types.RefreshOptions{})
 			return nil
 		},
 	})

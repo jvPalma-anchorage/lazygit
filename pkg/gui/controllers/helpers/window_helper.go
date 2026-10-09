@@ -146,39 +146,34 @@ func (self *WindowHelper) WindowForView(viewName string) string {
 	return context.GetWindowName()
 }
 
-// SideWindowNames returns the currently visible side-panel windows, top to
-// bottom, in the order they appear on screen. The status, commits, and stash
-// windows are omitted when the user has hidden them via config; files and
-// branches are always present. It is a free function rather than a method so it
-// can be called before the helpers are wired up, notably from
-// configureViewProperties on the first config load, which runs before
+func (self *WindowHelper) SideWindows() []string {
+	return SideWindowNames(self.c.UserConfig(), self.c.State().GetRepoState().GetReviewMode())
+}
+
+// SideWindowNames returns the side panel window names in order: the dedicated
+// review windows in PR review mode, otherwise those of the gui.sidePanels
+// config. It is a free function rather than a method so it can be called before
+// the helpers are wired up, notably from resetState, which runs before
 // resetHelpersAndControllers.
-func SideWindowNames(userConfig *config.UserConfig) []string {
-	windows := make([]string, 0, 5)
-	if userConfig.Gui.ShowStatusPanel {
-		windows = append(windows, "status")
+func SideWindowNames(userConfig *config.UserConfig, reviewMode bool) []string {
+	if reviewMode {
+		return ReviewSideWindowNames()
 	}
-	windows = append(windows, "files", "branches")
-	if userConfig.Gui.ShowCommitsPanel {
-		windows = append(windows, "commits")
-	}
-	if userConfig.Gui.ShowStashPanel {
-		windows = append(windows, "stash")
-	}
-	return windows
+	return sideWindowNames(userConfig)
 }
 
 // ReviewSideWindowNames returns the side-panel windows for PR review mode, top to
 // bottom. Review mode owns its own windows (it does not borrow files/branches/etc.),
-// so the normal SideWindowNames set and its config gating do not apply here. The
-// status window is intentionally absent — review mode suppresses it.
+// so the gui.sidePanels config does not apply here. The status window is
+// intentionally absent — review mode suppresses it.
 func ReviewSideWindowNames() []string {
 	return []string{"prList", "prContent", "prActivity"}
 }
 
-func (self *WindowHelper) SideWindows() []string {
-	if self.c.State().GetRepoState().GetReviewMode() {
-		return ReviewSideWindowNames()
-	}
-	return SideWindowNames(self.c.UserConfig())
+// sideWindowNames returns the side panel window names in order, derived from the
+// gui.sidePanels config. A panel's window name is the name of its first tab.
+func sideWindowNames(userConfig *config.UserConfig) []string {
+	return lo.Map(userConfig.Gui.SidePanels, func(panel config.SidePanel, _ int) string {
+		return panel[0]
+	})
 }

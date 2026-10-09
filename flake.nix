@@ -97,10 +97,12 @@
               # Go toolchain
               go
               gotools
+              gopls
 
               # Development tools
               git
               gnumake
+              just
             ];
 
             # Environment variables for development
@@ -108,8 +110,8 @@
           };
 
           treefmt = {
-            programs.nixfmt.enable = pkgs.lib.meta.availableOn pkgs.stdenv.buildPlatform pkgs.nixfmt-rfc-style.compiler;
-            programs.nixfmt.package = pkgs.nixfmt-rfc-style;
+            programs.nixfmt.enable = pkgs.lib.meta.availableOn pkgs.stdenv.buildPlatform pkgs.nixfmt.compiler;
+            programs.nixfmt.package = pkgs.nixfmt;
             programs.gofmt.enable = true;
           };
 

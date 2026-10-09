@@ -10,8 +10,8 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` <pgup>, K, <ctrl+u> (fn+up/shift+k) `` | 메인 패널을 위로 스크롤 |  |
 | `` <pgdown>, J, <ctrl+d> (fn+down/shift+j) `` | 메인 패널을 아래로로 스크롤 |  |
 | `` @ `` | 명령어 로그 메뉴 열기 | View options for the command log e.g. show/hide the command log and focus the command log. |
-| `` P `` | 푸시 | Push the current branch to its upstream branch. If no upstream is configured, you will be prompted to configure an upstream branch. |
-| `` p `` | 업데이트 | Pull changes from the remote for the current branch. If no upstream is configured, you will be prompted to configure an upstream branch. |
+| `` P `` | 푸시 | Push the current branch to its upstream branch. If no upstream is configured, you will be prompted to configure an upstream branch. If other branches are stacked below the current one and have commits to push, you are offered to push those too. |
+| `` p `` | 업데이트 | Pull changes from the remote for the current branch. If no upstream is configured, you will be prompted to configure an upstream branch. If other branches are stacked below the current one and have changed on the remote, you are offered to update those too. |
 | `` ) `` | Increase rename similarity threshold | Increase the similarity threshold for a deletion and addition pair to be treated as a rename.<br><br>The default can be changed in the config file with the key 'git.renameSimilarityThreshold'. |
 | `` ( `` | Decrease rename similarity threshold | Decrease the similarity threshold for a deletion and addition pair to be treated as a rename.<br><br>The default can be changed in the config file with the key 'git.renameSimilarityThreshold'. |
 | `` } `` | Diff 보기의 변경 사항 주위에 표시되는 컨텍스트의 크기를 늘리기 | Increase the amount of the context shown around changes in the diff view.<br><br>The default can be changed in the config file with the key 'git.diffContextSize'. |
@@ -22,7 +22,9 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` R `` | 새로고침 | Refresh the git state (i.e. run `git status`, `git branch`, etc in background to update the contents of panels). This does not run `git fetch`. |
 | `` + `` | 다음 스크린 모드 (normal/half/fullscreen) |  |
 | `` _ `` | 이전 스크린 모드 |  |
-| `` \| `` | Cycle pagers | Choose the next pager in the list of configured pagers |
+| `` \| `` | Cycle diff renderers | Choose the next renderer in the list of configured diff renderers. |
+| `` \ `` | Cycle diff renderers (reverse) | Choose the previous renderer in the list of configured diff renderers. |
+| `` <ctrl+g> `` | Jump to file in diff | Pick one of the files of the diff shown in the main view, and scroll the main view to it. The focus stays in this panel. |
 | `` <esc> `` | 취소 |  |
 | `` ? `` | 매뉴 열기 |  |
 | `` <ctrl+s> `` | View filter-by-path options | View options for filtering the commit log, so that only commits matching the filter are shown. |
@@ -30,6 +32,7 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` q, <ctrl+c> `` | 종료 |  |
 | `` <ctrl+z> `` | Suspend the application |  |
 | `` <ctrl+w> `` | 공백문자를 Diff 뷰에서 표시 여부 전환 | Toggle whether or not whitespace changes are shown in the diff view.<br><br>The default can be changed in the config file with the key 'git.ignoreWhitespaceInDiffView'. |
+| `` <alt+shift+c> `` | 설정 파일 수정 | Open file in external editor. |
 | `` z `` | 되돌리기 (reflog) (실험적) | The reflog will be used to determine what git command to run to undo the last git command. This does not include changes to the working tree; only commits are taken into consideration. |
 | `` Z `` | 다시 실행 (reflog) (실험적) | The reflog will be used to determine what git command to run to redo the last git command. This does not include changes to the working tree; only commits are taken into consideration. |
 
@@ -67,6 +70,7 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` o `` | 브라우저에서 커밋 열기 |  |
 | `` n `` | 커밋에서 새 브랜치를 만듭니다. |  |
 | `` N `` | Move commits to new branch | Create a new branch and move the unpushed commits of the current branch to it. Useful if you meant to start new work and forgot to create a new branch first.<br><br>Note that this disregards the selection, the new branch is always created either from the main branch or stacked on top of the current branch (you get to choose which). |
+| `` w `` | New worktree |  |
 | `` g `` | View reset options | View reset options (soft/mixed/hard) for resetting onto selected item. |
 | `` C `` | 커밋을 복사 (cherry-pick) | Mark commit as copied. Then, within the local commits view, you can press `V` to paste (cherry-pick) the copied commit(s) into your checked out branch. At any time you can press `<esc>` to cancel the selection. |
 | `` <ctrl+r> `` | Reset cherry-picked (copied) commits selection |  |
@@ -74,15 +78,31 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` * `` | Select commits of current branch |  |
 | `` 0 `` | Focus main view |  |
 | `` <enter> `` | 커밋 보기 |  |
-| `` w `` | View worktree options |  |
 | `` / `` | Filter the current view by text |  |
 
 ## Secondary
 
 | Key | Action | Info |
 |-----|--------|-------------|
-| `` <tab> `` | 패널 전환 | Switch to other view (staged/unstaged changes). |
+| `` <tab> `` | Switch diff pane | Switch to the other focused diff pane. |
+| `` a `` | Toggle hunk selection | Toggle line-by-line vs. hunk selection mode. |
+| `` v `` | 드래그 선택 전환 |  |
+| `` e `` | 파일 편집 | Open file in external editor. |
+| `` <space> `` | Staged 전환 | 선택한 행을 staged / unstaged |
+| `` d `` | 변경을 삭제 (git reset) | When unstaged change is selected, discard the change using `git reset`. When staged change is selected, unstage the change. |
+| `` E `` | Edit hunk | Edit selected hunk in external editor. |
+| `` <ctrl+o> `` | Copy selected diff lines to clipboard |  |
+| `` <left>, h `` | 이전 hunk를 선택 |  |
+| `` <right>, l `` | 다음 hunk를 선택 |  |
+| `` N `` | Go to previous file |  |
+| `` n `` | Go to next file |  |
+| `` <ctrl+g> `` | Jump to file |  |
+| `` G `` | Open pull request at selected line | Open the branch's pull request in your browser, at the line the selection is on, so that you can comment on it there. Only pull requests on GitHub are found. |
 | `` <esc> `` | Exit back to side panel |  |
+| `` c `` | 커밋 변경내용 | 스테이징된 변경 사항 커밋. |
+| `` w `` | Commit changes without pre-commit hook |  |
+| `` C `` | Git 편집기를 사용하여 변경 내용을 커밋합니다. |  |
+| `` <ctrl+f> `` | Find base commit for fixup | Find the commit that your current changes are building upon, for the sake of amending/fixing up the commit. This spares you from having to look through your branch's commits one-by-one to see which commit should be amended/fixed up. See docs: <https://github.com/jesseduffield/lazygit/tree/master/docs/Fixup_Commits.md> |
 | `` / `` | 검색 시작 |  |
 
 ## Stash
@@ -93,10 +113,10 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` g `` | Pop | Apply the stash entry to your working directory and remove the stash entry. |
 | `` d `` | Drop | Remove the stash entry from the stash list. |
 | `` n `` | 새 브랜치 생성 | Create a new branch from the selected stash entry. This works by git checking out the commit that the stash entry was created from, creating a new branch from that commit, then applying the stash entry to the new branch as an additional commit. |
+| `` w `` | New worktree |  |
 | `` r `` | Rename stash |  |
 | `` 0 `` | Focus main view |  |
 | `` <enter> `` | View selected item's files |  |
-| `` w `` | View worktree options |  |
 | `` / `` | Filter the current view by text |  |
 
 ## Sub-commits
@@ -109,6 +129,7 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` o `` | 브라우저에서 커밋 열기 |  |
 | `` n `` | 커밋에서 새 브랜치를 만듭니다. |  |
 | `` N `` | Move commits to new branch | Create a new branch and move the unpushed commits of the current branch to it. Useful if you meant to start new work and forgot to create a new branch first.<br><br>Note that this disregards the selection, the new branch is always created either from the main branch or stacked on top of the current branch (you get to choose which). |
+| `` w `` | New worktree |  |
 | `` g `` | View reset options | View reset options (soft/mixed/hard) for resetting onto selected item. |
 | `` C `` | 커밋을 복사 (cherry-pick) | Mark commit as copied. Then, within the local commits view, you can press `V` to paste (cherry-pick) the copied commit(s) into your checked out branch. At any time you can press `<esc>` to cancel the selection. |
 | `` <ctrl+r> `` | Reset cherry-picked (copied) commits selection |  |
@@ -116,7 +137,6 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` * `` | Select commits of current branch |  |
 | `` 0 `` | Focus main view |  |
 | `` <enter> `` | View selected item's files |  |
-| `` w `` | View worktree options |  |
 | `` / `` | 검색 시작 |  |
 
 ## Worktrees
@@ -142,7 +162,7 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | Key | Action | Info |
 |-----|--------|-------------|
 | `` <space> `` | Pick hunk |  |
-| `` b `` | Pick all hunks |  |
+| `` b `` | Pick both hunks |  |
 | `` <up>, k `` | 이전 hunk를 선택 |  |
 | `` <down>, j `` | 다음 hunk를 선택 |  |
 | `` <left>, h `` | 이전 충돌을 선택 |  |
@@ -159,42 +179,21 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 |-----|--------|-------------|
 | `` <mouse wheel down> (fn+up) `` | 아래로 스크롤 |  |
 | `` <mouse wheel up> (fn+down) `` | 위로 스크롤 |  |
-| `` <tab> `` | 패널 전환 | Switch to other view (staged/unstaged changes). |
-| `` <esc> `` | Exit back to side panel |  |
-| `` / `` | 검색 시작 |  |
-
-## 메인 패널 (Patch Building)
-
-| Key | Action | Info |
-|-----|--------|-------------|
-| `` <left>, h `` | 이전 hunk를 선택 |  |
-| `` <right>, l `` | 다음 hunk를 선택 |  |
-| `` v `` | 드래그 선택 전환 |  |
+| `` <tab> `` | Switch diff pane | Switch to the other focused diff pane. |
 | `` a `` | Toggle hunk selection | Toggle line-by-line vs. hunk selection mode. |
-| `` <ctrl+o> `` | 선택한 텍스트를 클립보드에 복사 |  |
-| `` o `` | 파일 닫기 | Open file in default application. |
+| `` v `` | 드래그 선택 전환 |  |
 | `` e `` | 파일 편집 | Open file in external editor. |
-| `` <space> `` | Line(s)을 패치에 추가/삭제 |  |
-| `` d `` | Remove lines from commit | Remove the selected lines from this commit. This runs an interactive rebase in the background, so you may get a merge conflict if a later commit also changes these lines. |
-| `` <esc> `` | Exit custom patch builder |  |
-| `` / `` | 검색 시작 |  |
-
-## 메인 패널 (Staging)
-
-| Key | Action | Info |
-|-----|--------|-------------|
-| `` <left>, h `` | 이전 hunk를 선택 |  |
-| `` <right>, l `` | 다음 hunk를 선택 |  |
-| `` v `` | 드래그 선택 전환 |  |
-| `` a `` | Toggle hunk selection | Toggle line-by-line vs. hunk selection mode. |
-| `` <ctrl+o> `` | 선택한 텍스트를 클립보드에 복사 |  |
 | `` <space> `` | Staged 전환 | 선택한 행을 staged / unstaged |
 | `` d `` | 변경을 삭제 (git reset) | When unstaged change is selected, discard the change using `git reset`. When staged change is selected, unstage the change. |
-| `` o `` | 파일 닫기 | Open file in default application. |
-| `` e `` | 파일 편집 | Open file in external editor. |
-| `` <esc> `` | 파일 목록으로 돌아가기 |  |
-| `` <tab> `` | 패널 전환 | Switch to other view (staged/unstaged changes). |
 | `` E `` | Edit hunk | Edit selected hunk in external editor. |
+| `` <ctrl+o> `` | Copy selected diff lines to clipboard |  |
+| `` <left>, h `` | 이전 hunk를 선택 |  |
+| `` <right>, l `` | 다음 hunk를 선택 |  |
+| `` N `` | Go to previous file |  |
+| `` n `` | Go to next file |  |
+| `` <ctrl+g> `` | Jump to file |  |
+| `` G `` | Open pull request at selected line | Open the branch's pull request in your browser, at the line the selection is on, so that you can comment on it there. Only pull requests on GitHub are found. |
+| `` <esc> `` | Exit back to side panel |  |
 | `` c `` | 커밋 변경내용 | 스테이징된 변경 사항 커밋. |
 | `` w `` | Commit changes without pre-commit hook |  |
 | `` C `` | Git 편집기를 사용하여 변경 내용을 커밋합니다. |  |
@@ -210,6 +209,7 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` <space> `` | 체크아웃 | Checkout selected item. |
 | `` n `` | 새 브랜치 생성 |  |
 | `` N `` | Move commits to new branch | Create a new branch and move the unpushed commits of the current branch to it. Useful if you meant to start new work and forgot to create a new branch first.<br><br>Note that this disregards the selection, the new branch is always created either from the main branch or stacked on top of the current branch (you get to choose which). |
+| `` w `` | New worktree |  |
 | `` o `` | 풀 리퀘스트 생성 |  |
 | `` O `` | 풀 리퀘스트 생성 옵션 |  |
 | `` G `` | Open pull request in browser |  |
@@ -220,7 +220,7 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` d `` | 삭제 | View delete options for local/remote branch. |
 | `` r `` | 체크아웃된 브랜치를 이 브랜치에 리베이스 | Rebase the checked-out branch onto the selected branch. |
 | `` M `` | 현재 브랜치에 병합 | View options for merging the selected item into the current branch (regular merge, squash merge) |
-| `` f `` | Fast-forward this branch from its upstream | Fast-forward selected branch from its upstream. |
+| `` f `` | Fast-forward this branch from its upstream | Fast-forward selected branch from its upstream. If the branch has diverged from its upstream because the upstream branch was rewritten, and it has no commits of its own, it is reset to its upstream instead. This needs reflogs to be enabled; a bare repository doesn't keep them by default (core.logAllRefUpdates). |
 | `` T `` | 태그를 생성 |  |
 | `` s `` | Sort order |  |
 | `` g `` | View reset options |  |
@@ -229,14 +229,12 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` <ctrl+t> `` | Open external diff tool (git difftool) |  |
 | `` 0 `` | Focus main view |  |
 | `` <enter> `` | 커밋 보기 |  |
-| `` w `` | View worktree options |  |
 | `` / `` | Filter the current view by text |  |
 
 ## 상태
 
 | Key | Action | Info |
 |-----|--------|-------------|
-| `` o `` | 설정 파일 열기 | Open file in default application. |
 | `` e `` | 설정 파일 수정 | Open file in external editor. |
 | `` u `` | 업데이트 확인 |  |
 | `` <enter> `` | 최근에 사용한 저장소로 전환 |  |
@@ -277,6 +275,7 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` <ctrl+o> `` | 브랜치명을 클립보드에 복사 |  |
 | `` <space> `` | 체크아웃 | Checkout a new local branch based on the selected remote branch, or the remote branch as a detached head. |
 | `` n `` | 새 브랜치 생성 |  |
+| `` w `` | New worktree |  |
 | `` M `` | 현재 브랜치에 병합 | View options for merging the selected item into the current branch (regular merge, squash merge) |
 | `` r `` | 체크아웃된 브랜치를 이 브랜치에 리베이스 | Rebase the checked-out branch onto the selected branch. |
 | `` d `` | 삭제 | Delete the remote branch from the remote. |
@@ -286,7 +285,6 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` <ctrl+t> `` | Open external diff tool (git difftool) |  |
 | `` 0 `` | Focus main view |  |
 | `` <enter> `` | 커밋 보기 |  |
-| `` w `` | View worktree options |  |
 | `` / `` | Filter the current view by text |  |
 
 ## 커밋
@@ -322,13 +320,13 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` o `` | 브라우저에서 커밋 열기 |  |
 | `` n `` | 커밋에서 새 브랜치를 만듭니다. |  |
 | `` N `` | Move commits to new branch | Create a new branch and move the unpushed commits of the current branch to it. Useful if you meant to start new work and forgot to create a new branch first.<br><br>Note that this disregards the selection, the new branch is always created either from the main branch or stacked on top of the current branch (you get to choose which). |
+| `` w `` | New worktree |  |
 | `` g `` | View reset options | View reset options (soft/mixed/hard) for resetting onto selected item. |
 | `` C `` | 커밋을 복사 (cherry-pick) | Mark commit as copied. Then, within the local commits view, you can press `V` to paste (cherry-pick) the copied commit(s) into your checked out branch. At any time you can press `<esc>` to cancel the selection. |
 | `` <ctrl+t> `` | Open external diff tool (git difftool) |  |
 | `` * `` | Select commits of current branch |  |
 | `` 0 `` | Focus main view |  |
 | `` <enter> `` | View selected item's files |  |
-| `` w `` | View worktree options |  |
 | `` / `` | 검색 시작 |  |
 
 ## 커밋 파일
@@ -344,7 +342,7 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` <ctrl+t> `` | Open external diff tool (git difftool) |  |
 | `` <space> `` | Toggle file included in patch | Toggle whether the file is included in the custom patch. See https://github.com/jesseduffield/lazygit#rebase-magic-custom-patches. |
 | `` a `` | Toggle all files included in patch | Add/remove all commit's files to custom patch. See https://github.com/jesseduffield/lazygit#rebase-magic-custom-patches. |
-| `` <enter> `` | Enter file to add selected lines to the patch (or toggle directory collapsed) | If a file is selected, enter the file so that you can add/remove individual lines to the custom patch. If a directory is selected, toggle the directory. |
+| `` <enter> `` | Focus file diff / Toggle directory | If a file is selected, focus its diff so you can act on individual lines. If it is a directory, collapse or expand it. |
 | `` ` `` | 파일 트리뷰로 전환 | Toggle file view between flat and tree layout. Flat layout shows all file paths in a single list, tree layout groups files by directory.<br><br>The default can be changed in the config file with the key 'gui.showFileTree'. |
 | `` - `` | Collapse all files | Collapse all directories in the files tree |
 | `` = `` | Expand all files | Expand all directories in the file tree |
@@ -365,13 +363,13 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` <ctrl+o> `` | Copy tag to clipboard |  |
 | `` <space> `` | 체크아웃 | Checkout the selected tag as a detached HEAD. |
 | `` n `` | 태그를 생성 | Create new tag from current commit. You'll be prompted to enter a tag name and optional description. |
+| `` w `` | New worktree |  |
 | `` d `` | 삭제 | View delete options for local/remote tag. |
 | `` P `` | 태그를 push | Push the selected tag to a remote. You'll be prompted to select a remote. |
 | `` g `` | 초기화 | View reset options (soft/mixed/hard) for resetting onto selected item. |
 | `` <ctrl+t> `` | Open external diff tool (git difftool) |  |
 | `` 0 `` | Focus main view |  |
 | `` <enter> `` | 커밋 보기 |  |
-| `` w `` | View worktree options |  |
 | `` / `` | Filter the current view by text |  |
 
 ## 파일
@@ -394,7 +392,7 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` s `` | Stash | Stash all changes. For other variations of stashing, use the view stash options keybinding. |
 | `` S `` | Stash 옵션 보기 | View stash options (e.g. stash all, stash staged, stash unstaged). |
 | `` a `` | 모든 변경을 Staged/unstaged으로 전환 | Toggle staged/unstaged for all files in working tree. |
-| `` <enter> `` | Stage individual hunks/lines for file, or collapse/expand for directory | If the selected item is a file, focus the staging view so you can stage individual hunks/lines. If the selected item is a directory, collapse/expand it. |
+| `` <enter> `` | Focus file diff / Collapse directory | If the selected item is a file, focus its diff so you can act on individual hunks or lines. If it is a directory, collapse or expand it. |
 | `` d `` | View 'discard changes' options | View options for discarding changes to the selected file. |
 | `` g `` | View upstream reset options |  |
 | `` D `` | 초기화 | View reset options for working tree (e.g. nuking the working tree). |

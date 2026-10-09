@@ -10,8 +10,8 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` <pgup>, K, <ctrl+u> (fn+up/shift+k) `` | Przewiń główne okno w górę |  |
 | `` <pgdown>, J, <ctrl+d> (fn+down/shift+j) `` | Przewiń główne okno w dół |  |
 | `` @ `` | Pokaż opcje dziennika poleceń | Pokaż opcje dla dziennika poleceń, np. pokazywanie/ukrywanie dziennika poleceń i skupienie na dzienniku poleceń. |
-| `` P `` | Wypchnij | Wypchnij bieżącą gałąź do jej gałęzi nadrzędnej. Jeśli nie skonfigurowano gałęzi nadrzędnej, zostaniesz poproszony o skonfigurowanie gałęzi nadrzędnej. |
-| `` p `` | Pociągnij | Pociągnij zmiany ze zdalnego dla bieżącej gałęzi. Jeśli nie skonfigurowano gałęzi nadrzędnej, zostaniesz poproszony o skonfigurowanie gałęzi nadrzędnej. |
+| `` P `` | Wypchnij | Push the current branch to its upstream branch. If no upstream is configured, you will be prompted to configure an upstream branch. If other branches are stacked below the current one and have commits to push, you are offered to push those too. |
+| `` p `` | Pociągnij | Pull changes from the remote for the current branch. If no upstream is configured, you will be prompted to configure an upstream branch. If other branches are stacked below the current one and have changed on the remote, you are offered to update those too. |
 | `` ) `` | Increase rename similarity threshold | Increase the similarity threshold for a deletion and addition pair to be treated as a rename.<br><br>The default can be changed in the config file with the key 'git.renameSimilarityThreshold'. |
 | `` ( `` | Decrease rename similarity threshold | Decrease the similarity threshold for a deletion and addition pair to be treated as a rename.<br><br>The default can be changed in the config file with the key 'git.renameSimilarityThreshold'. |
 | `` } `` | Zwiększ rozmiar kontekstu w widoku różnic | Increase the amount of the context shown around changes in the diff view.<br><br>The default can be changed in the config file with the key 'git.diffContextSize'. |
@@ -22,7 +22,9 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` R `` | Odśwież | Odśwież stan git (tj. uruchom `git status`, `git branch`, itp. w tle, aby zaktualizować zawartość paneli). To nie uruchamia `git fetch`. |
 | `` + `` | Następny tryb ekranu (normalny/półpełny/pełnoekranowy) |  |
 | `` _ `` | Poprzedni tryb ekranu |  |
-| `` \| `` | Cycle pagers | Choose the next pager in the list of configured pagers |
+| `` \| `` | Cycle diff renderers | Choose the next renderer in the list of configured diff renderers. |
+| `` \ `` | Cycle diff renderers (reverse) | Choose the previous renderer in the list of configured diff renderers. |
+| `` <ctrl+g> `` | Jump to file in diff | Pick one of the files of the diff shown in the main view, and scroll the main view to it. The focus stays in this panel. |
 | `` <esc> `` | Anuluj |  |
 | `` ? `` | Otwórz menu przypisań klawiszy |  |
 | `` <ctrl+s> `` | Pokaż opcje filtrowania | Pokaż opcje filtrowania dziennika commitów, tak aby pokazywane były tylko commity pasujące do filtra. |
@@ -30,6 +32,7 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` q, <ctrl+c> `` | Wyjdź |  |
 | `` <ctrl+z> `` | Suspend the application |  |
 | `` <ctrl+w> `` | Przełącz białe znaki | Toggle whether or not whitespace changes are shown in the diff view.<br><br>The default can be changed in the config file with the key 'git.ignoreWhitespaceInDiffView'. |
+| `` <alt+shift+c> `` | Edytuj plik konfiguracyjny | Otwórz plik w zewnętrznym edytorze. |
 | `` z `` | Cofnij | Dziennik reflog zostanie użyty do określenia, jakie polecenie git należy uruchomić, aby cofnąć ostatnie polecenie git. Nie obejmuje to zmian w drzewie roboczym; brane są pod uwagę tylko commity. |
 | `` Z `` | Ponów | Dziennik reflog zostanie użyty do określenia, jakie polecenie git należy uruchomić, aby ponowić ostatnie polecenie git. Nie obejmuje to zmian w drzewie roboczym; brane są pod uwagę tylko commity. |
 
@@ -83,21 +86,38 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` o `` | Otwórz commit w przeglądarce |  |
 | `` n `` | Utwórz nową gałąź z commita |  |
 | `` N `` | Przenieś commity do nowej gałęzi | Create a new branch and move the unpushed commits of the current branch to it. Useful if you meant to start new work and forgot to create a new branch first.<br><br>Note that this disregards the selection, the new branch is always created either from the main branch or stacked on top of the current branch (you get to choose which). |
+| `` w `` | Nowe drzewo pracy |  |
 | `` g `` | Reset | Wyświetl opcje resetu (miękki/mieszany/twardy) do wybranego elementu. |
 | `` C `` | Kopiuj (cherry-pick) | Oznacz commit jako skopiowany. Następnie, w widoku lokalnych commitów, możesz nacisnąć `V`, aby wkleić (cherry-pick) skopiowane commity do sprawdzonej gałęzi. W dowolnym momencie możesz nacisnąć `<esc>`, aby anulować zaznaczenie. |
 | `` <ctrl+t> `` | Otwórz zewnętrzne narzędzie różnic (git difftool) |  |
 | `` * `` | Select commits of current branch |  |
 | `` 0 `` | Focus main view |  |
 | `` <enter> `` | Wyświetl pliki |  |
-| `` w `` | Zobacz opcje drzewa pracy |  |
 | `` / `` | Szukaj w bieżącym widoku po tekście |  |
 
 ## Dodatkowy
 
 | Key | Action | Info |
 |-----|--------|-------------|
-| `` <tab> `` | Przełącz widok | Przełącz na inny widok (zatwierdzone/niezatwierdzone zmiany). |
+| `` <tab> `` | Switch diff pane | Switch to the other focused diff pane. |
+| `` a `` | Toggle hunk selection | Toggle line-by-line vs. hunk selection mode. |
+| `` v `` | Przełącz zaznaczenie zakresu |  |
+| `` e `` | Edytuj plik | Otwórz plik w zewnętrznym edytorze. |
+| `` <space> `` | Zatwierdź | Przełącz zaznaczenie zatwierdzone/niezatwierdzone. |
+| `` d `` | Odrzuć | Gdy zaznaczona jest niezatwierdzona zmiana, odrzuć ją używając `git reset`. Gdy zaznaczona jest zatwierdzona zmiana, cofnij zatwierdzenie. |
+| `` E `` | Edytuj fragment | Edytuj wybrany fragment w zewnętrznym edytorze. |
+| `` <ctrl+o> `` | Copy selected diff lines to clipboard |  |
+| `` <left>, h `` | Idź do poprzedniego fragmentu |  |
+| `` <right>, l `` | Idź do następnego fragmentu |  |
+| `` N `` | Go to previous file |  |
+| `` n `` | Go to next file |  |
+| `` <ctrl+g> `` | Jump to file |  |
+| `` G `` | Open pull request at selected line | Open the branch's pull request in your browser, at the line the selection is on, so that you can comment on it there. Only pull requests on GitHub are found. |
 | `` <esc> `` | Exit back to side panel |  |
+| `` c `` | Commit | Zatwierdź zmiany zatwierdzone. |
+| `` w `` | Zatwierdź zmiany bez hooka pre-commit |  |
+| `` C `` | Zatwierdź zmiany używając edytora git |  |
+| `` <ctrl+f> `` | Znajdź bazowy commit do poprawki | Znajdź commit, na którym opierają się Twoje obecne zmiany, w celu poprawienia/zmiany commita. To pozwala Ci uniknąć przeglądania commitów w Twojej gałęzi jeden po drugim, aby zobaczyć, który commit powinien być poprawiony/zmieniony. Zobacz dokumentację: <https://github.com/jesseduffield/lazygit/tree/master/docs/Fixup_Commits.md> |
 | `` / `` | Szukaj w bieżącym widoku po tekście |  |
 
 ## Drzewa pracy
@@ -120,6 +140,7 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` o `` | Otwórz commit w przeglądarce |  |
 | `` n `` | Utwórz nową gałąź z commita |  |
 | `` N `` | Przenieś commity do nowej gałęzi | Create a new branch and move the unpushed commits of the current branch to it. Useful if you meant to start new work and forgot to create a new branch first.<br><br>Note that this disregards the selection, the new branch is always created either from the main branch or stacked on top of the current branch (you get to choose which). |
+| `` w `` | Nowe drzewo pracy |  |
 | `` g `` | Reset | Wyświetl opcje resetu (miękki/mieszany/twardy) do wybranego elementu. |
 | `` C `` | Kopiuj (cherry-pick) | Oznacz commit jako skopiowany. Następnie, w widoku lokalnych commitów, możesz nacisnąć `V`, aby wkleić (cherry-pick) skopiowane commity do sprawdzonej gałęzi. W dowolnym momencie możesz nacisnąć `<esc>`, aby anulować zaznaczenie. |
 | `` <ctrl+r> `` | Resetuj wybrane (cherry-picked) commity |  |
@@ -127,24 +148,7 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` * `` | Select commits of current branch |  |
 | `` 0 `` | Focus main view |  |
 | `` <enter> `` | Pokaż commity |  |
-| `` w `` | Zobacz opcje drzewa pracy |  |
 | `` / `` | Filtruj bieżący widok po tekście |  |
-
-## Główny panel (budowanie łatki)
-
-| Key | Action | Info |
-|-----|--------|-------------|
-| `` <left>, h `` | Idź do poprzedniego fragmentu |  |
-| `` <right>, l `` | Idź do następnego fragmentu |  |
-| `` v `` | Przełącz zaznaczenie zakresu |  |
-| `` a `` | Toggle hunk selection | Toggle line-by-line vs. hunk selection mode. |
-| `` <ctrl+o> `` | Kopiuj zaznaczony tekst do schowka |  |
-| `` o `` | Otwórz plik | Otwórz plik w domyślnej aplikacji. |
-| `` e `` | Edytuj plik | Otwórz plik w zewnętrznym edytorze. |
-| `` <space> `` | Przełącz linie w łatce |  |
-| `` d `` | Remove lines from commit | Remove the selected lines from this commit. This runs an interactive rebase in the background, so you may get a merge conflict if a later commit also changes these lines. |
-| `` <esc> `` | Wyjdź z budowniczego niestandardowej łatki |  |
-| `` / `` | Szukaj w bieżącym widoku po tekście |  |
 
 ## Input prompt
 
@@ -162,6 +166,7 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` <space> `` | Przełącz | Przełącz wybrany element. |
 | `` n `` | Nowa gałąź |  |
 | `` N `` | Przenieś commity do nowej gałęzi | Create a new branch and move the unpushed commits of the current branch to it. Useful if you meant to start new work and forgot to create a new branch first.<br><br>Note that this disregards the selection, the new branch is always created either from the main branch or stacked on top of the current branch (you get to choose which). |
+| `` w `` | Nowe drzewo pracy |  |
 | `` o `` | Utwórz żądanie ściągnięcia |  |
 | `` O `` | Zobacz opcje tworzenia pull requesta |  |
 | `` G `` | Otwórz żądanie ściągnięcia w przeglądarce |  |
@@ -172,7 +177,7 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` d `` | Usuń | Wyświetl opcje usuwania lokalnej/odległej gałęzi. |
 | `` r `` | Przebazuj | Przebazuj przełączoną gałąź na wybraną gałąź. |
 | `` M `` | Scal | Scal wybraną gałąź z aktualnie sprawdzoną gałęzią. |
-| `` f `` | Szybkie przewijanie | Szybkie przewijanie wybranej gałęzi z jej źródła. |
+| `` f `` | Szybkie przewijanie | Fast-forward selected branch from its upstream. If the branch has diverged from its upstream because the upstream branch was rewritten, and it has no commits of its own, it is reset to its upstream instead. This needs reflogs to be enabled; a bare repository doesn't keep them by default (core.logAllRefUpdates). |
 | `` T `` | Nowy tag |  |
 | `` s `` | Kolejność sortowania |  |
 | `` g `` | Reset |  |
@@ -181,7 +186,6 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` <ctrl+t> `` | Otwórz zewnętrzne narzędzie różnic (git difftool) |  |
 | `` 0 `` | Focus main view |  |
 | `` <enter> `` | Pokaż commity |  |
-| `` w `` | Zobacz opcje drzewa pracy |  |
 | `` / `` | Filtruj bieżący widok po tekście |  |
 
 ## Menu
@@ -198,8 +202,25 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 |-----|--------|-------------|
 | `` <mouse wheel down> (fn+up) `` | Przewiń w dół |  |
 | `` <mouse wheel up> (fn+down) `` | Przewiń w górę |  |
-| `` <tab> `` | Przełącz widok | Przełącz na inny widok (zatwierdzone/niezatwierdzone zmiany). |
+| `` <tab> `` | Switch diff pane | Switch to the other focused diff pane. |
+| `` a `` | Toggle hunk selection | Toggle line-by-line vs. hunk selection mode. |
+| `` v `` | Przełącz zaznaczenie zakresu |  |
+| `` e `` | Edytuj plik | Otwórz plik w zewnętrznym edytorze. |
+| `` <space> `` | Zatwierdź | Przełącz zaznaczenie zatwierdzone/niezatwierdzone. |
+| `` d `` | Odrzuć | Gdy zaznaczona jest niezatwierdzona zmiana, odrzuć ją używając `git reset`. Gdy zaznaczona jest zatwierdzona zmiana, cofnij zatwierdzenie. |
+| `` E `` | Edytuj fragment | Edytuj wybrany fragment w zewnętrznym edytorze. |
+| `` <ctrl+o> `` | Copy selected diff lines to clipboard |  |
+| `` <left>, h `` | Idź do poprzedniego fragmentu |  |
+| `` <right>, l `` | Idź do następnego fragmentu |  |
+| `` N `` | Go to previous file |  |
+| `` n `` | Go to next file |  |
+| `` <ctrl+g> `` | Jump to file |  |
+| `` G `` | Open pull request at selected line | Open the branch's pull request in your browser, at the line the selection is on, so that you can comment on it there. Only pull requests on GitHub are found. |
 | `` <esc> `` | Exit back to side panel |  |
+| `` c `` | Commit | Zatwierdź zmiany zatwierdzone. |
+| `` w `` | Zatwierdź zmiany bez hooka pre-commit |  |
+| `` C `` | Zatwierdź zmiany używając edytora git |  |
+| `` <ctrl+f> `` | Znajdź bazowy commit do poprawki | Znajdź commit, na którym opierają się Twoje obecne zmiany, w celu poprawienia/zmiany commita. To pozwala Ci uniknąć przeglądania commitów w Twojej gałęzi jeden po drugim, aby zobaczyć, który commit powinien być poprawiony/zmieniony. Zobacz dokumentację: <https://github.com/jesseduffield/lazygit/tree/master/docs/Fixup_Commits.md> |
 | `` / `` | Szukaj w bieżącym widoku po tekście |  |
 
 ## Panel główny (scalanie)
@@ -207,7 +228,7 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | Key | Action | Info |
 |-----|--------|-------------|
 | `` <space> `` | Wybierz fragment |  |
-| `` b `` | Wybierz wszystkie fragmenty |  |
+| `` b `` | Pick both hunks |  |
 | `` <up>, k `` | Poprzedni fragment |  |
 | `` <down>, j `` | Następny fragment |  |
 | `` <left>, h `` | Poprzedni konflikt |  |
@@ -217,28 +238,6 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` o `` | Otwórz plik | Otwórz plik w domyślnej aplikacji. |
 | `` M `` | View merge conflict options | View options for resolving merge conflicts. |
 | `` <esc> `` | Wróć do panelu plików |  |
-
-## Panel główny (zatwierdzanie)
-
-| Key | Action | Info |
-|-----|--------|-------------|
-| `` <left>, h `` | Idź do poprzedniego fragmentu |  |
-| `` <right>, l `` | Idź do następnego fragmentu |  |
-| `` v `` | Przełącz zaznaczenie zakresu |  |
-| `` a `` | Toggle hunk selection | Toggle line-by-line vs. hunk selection mode. |
-| `` <ctrl+o> `` | Kopiuj zaznaczony tekst do schowka |  |
-| `` <space> `` | Zatwierdź | Przełącz zaznaczenie zatwierdzone/niezatwierdzone. |
-| `` d `` | Odrzuć | Gdy zaznaczona jest niezatwierdzona zmiana, odrzuć ją używając `git reset`. Gdy zaznaczona jest zatwierdzona zmiana, cofnij zatwierdzenie. |
-| `` o `` | Otwórz plik | Otwórz plik w domyślnej aplikacji. |
-| `` e `` | Edytuj plik | Otwórz plik w zewnętrznym edytorze. |
-| `` <esc> `` | Wróć do panelu plików |  |
-| `` <tab> `` | Przełącz widok | Przełącz na inny widok (zatwierdzone/niezatwierdzone zmiany). |
-| `` E `` | Edytuj fragment | Edytuj wybrany fragment w zewnętrznym edytorze. |
-| `` c `` | Commit | Zatwierdź zmiany zatwierdzone. |
-| `` w `` | Zatwierdź zmiany bez hooka pre-commit |  |
-| `` C `` | Zatwierdź zmiany używając edytora git |  |
-| `` <ctrl+f> `` | Znajdź bazowy commit do poprawki | Znajdź commit, na którym opierają się Twoje obecne zmiany, w celu poprawienia/zmiany commita. To pozwala Ci uniknąć przeglądania commitów w Twojej gałęzi jeden po drugim, aby zobaczyć, który commit powinien być poprawiony/zmieniony. Zobacz dokumentację: <https://github.com/jesseduffield/lazygit/tree/master/docs/Fixup_Commits.md> |
-| `` / `` | Szukaj w bieżącym widoku po tekście |  |
 
 ## Panel potwierdzenia
 
@@ -268,7 +267,7 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` s `` | Schowaj | Schowaj wszystkie zmiany. Dla innych wariantów schowania, użyj klawisza wyświetlania opcji schowka. |
 | `` S `` | Wyświetl opcje schowka | Wyświetl opcje schowka (np. schowaj wszystko, schowaj zatwierdzone, schowaj niezatwierdzone). |
 | `` a `` | Zatwierdź wszystko | Przełącz zatwierdzenie/odznaczenie dla wszystkich plików w drzewie roboczym. |
-| `` <enter> `` | Zatwierdź linie / Zwiń katalog | Jeśli wybrany element jest plikiem, skup się na widoku zatwierdzania, aby móc zatwierdzać poszczególne fragmenty/linie. Jeśli wybrany element jest katalogiem, zwiń/rozwiń go. |
+| `` <enter> `` | Focus file diff / Collapse directory | If the selected item is a file, focus its diff so you can act on individual hunks or lines. If it is a directory, collapse or expand it. |
 | `` d `` | Odrzuć | Wyświetl opcje odrzucania zmian w wybranym pliku. |
 | `` g `` | Pokaż opcje resetowania do upstream |  |
 | `` D `` | Reset | Wyświetl opcje resetu dla drzewa roboczego (np. zniszczenie drzewa roboczego). |
@@ -294,7 +293,7 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` <ctrl+t> `` | Otwórz zewnętrzne narzędzie różnic (git difftool) |  |
 | `` <space> `` | Przełącz plik włączony w łatkę | Przełącz, czy plik jest włączony w niestandardową łatkę. Zobacz https://github.com/jesseduffield/lazygit#rebase-magic-custom-patches. |
 | `` a `` | Przełącz wszystkie pliki | Dodaj/usuń wszystkie pliki commita do niestandardowej łatki. Zobacz https://github.com/jesseduffield/lazygit#rebase-magic-custom-patches. |
-| `` <enter> `` | Wejdź do pliku / Przełącz zwiń katalog | Jeśli plik jest wybrany, wejdź do pliku, aby móc dodawać/usuwać poszczególne linie do niestandardowej łatki. Jeśli wybrany jest katalog, przełącz katalog. |
+| `` <enter> `` | Focus file diff / Toggle directory | If a file is selected, focus its diff so you can act on individual lines. If it is a directory, collapse or expand it. |
 | `` ` `` | Przełącz widok drzewa plików | Toggle file view between flat and tree layout. Flat layout shows all file paths in a single list, tree layout groups files by directory.<br><br>The default can be changed in the config file with the key 'gui.showFileTree'. |
 | `` - `` | Collapse all files | Collapse all directories in the files tree |
 | `` = `` | Expand all files | Expand all directories in the file tree |
@@ -316,17 +315,16 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` g `` | Wyciągnij | Zastosuj wpis schowka do katalogu roboczego i usuń wpis schowka. |
 | `` d `` | Usuń | Usuń wpis schowka z listy schowka. |
 | `` n `` | Nowa gałąź | Utwórz nową gałąź z wybranego wpisu schowka. Działa poprzez przełączenie git na commit, na którym wpis schowka został utworzony, tworzenie nowej gałęzi z tego commita, a następnie zastosowanie wpisu schowka do nowej gałęzi jako dodatkowego commita. |
+| `` w `` | Nowe drzewo pracy |  |
 | `` r `` | Zmień nazwę schowka |  |
 | `` 0 `` | Focus main view |  |
 | `` <enter> `` | Wyświetl pliki |  |
-| `` w `` | Zobacz opcje drzewa pracy |  |
 | `` / `` | Filtruj bieżący widok po tekście |  |
 
 ## Status
 
 | Key | Action | Info |
 |-----|--------|-------------|
-| `` o `` | Otwórz plik konfiguracyjny | Otwórz plik w domyślnej aplikacji. |
 | `` e `` | Edytuj plik konfiguracyjny | Otwórz plik w zewnętrznym edytorze. |
 | `` u `` | Sprawdź aktualizacje |  |
 | `` <enter> `` | Przełącz na ostatnie repozytorium |  |
@@ -344,6 +342,7 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` o `` | Otwórz commit w przeglądarce |  |
 | `` n `` | Utwórz nową gałąź z commita |  |
 | `` N `` | Przenieś commity do nowej gałęzi | Create a new branch and move the unpushed commits of the current branch to it. Useful if you meant to start new work and forgot to create a new branch first.<br><br>Note that this disregards the selection, the new branch is always created either from the main branch or stacked on top of the current branch (you get to choose which). |
+| `` w `` | Nowe drzewo pracy |  |
 | `` g `` | Reset | Wyświetl opcje resetu (miękki/mieszany/twardy) do wybranego elementu. |
 | `` C `` | Kopiuj (cherry-pick) | Oznacz commit jako skopiowany. Następnie, w widoku lokalnych commitów, możesz nacisnąć `V`, aby wkleić (cherry-pick) skopiowane commity do sprawdzonej gałęzi. W dowolnym momencie możesz nacisnąć `<esc>`, aby anulować zaznaczenie. |
 | `` <ctrl+r> `` | Resetuj wybrane (cherry-picked) commity |  |
@@ -351,7 +350,6 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` * `` | Select commits of current branch |  |
 | `` 0 `` | Focus main view |  |
 | `` <enter> `` | Wyświetl pliki |  |
-| `` w `` | Zobacz opcje drzewa pracy |  |
 | `` / `` | Szukaj w bieżącym widoku po tekście |  |
 
 ## Submoduły
@@ -375,13 +373,13 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` <ctrl+o> `` | Skopiuj tag do schowka |  |
 | `` <space> `` | Przełącz | Przełącz wybrany tag jako odłączoną głowę (detached HEAD). |
 | `` n `` | Nowy tag | Utwórz nowy tag z bieżącego commita. Zostaniesz poproszony o wprowadzenie nazwy tagu i opcjonalnego opisu. |
+| `` w `` | Nowe drzewo pracy |  |
 | `` d `` | Usuń | Wyświetl opcje usuwania lokalnego/odległego tagu. |
 | `` P `` | Wyślij tag | Wyślij wybrany tag do zdalnego. Zostaniesz poproszony o wybranie zdalnego. |
 | `` g `` | Reset | Wyświetl opcje resetu (miękki/mieszany/twardy) do wybranego elementu. |
 | `` <ctrl+t> `` | Otwórz zewnętrzne narzędzie różnic (git difftool) |  |
 | `` 0 `` | Focus main view |  |
 | `` <enter> `` | Pokaż commity |  |
-| `` w `` | Zobacz opcje drzewa pracy |  |
 | `` / `` | Filtruj bieżący widok po tekście |  |
 
 ## Zdalne
@@ -403,6 +401,7 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` <ctrl+o> `` | Kopiuj nazwę gałęzi do schowka |  |
 | `` <space> `` | Przełącz | Przełącz na nową lokalną gałąź na podstawie wybranej gałęzi zdalnej. Nowa gałąź będzie śledzić gałąź zdalną. |
 | `` n `` | Nowa gałąź |  |
+| `` w `` | Nowe drzewo pracy |  |
 | `` M `` | Scal | Scal wybraną gałąź z aktualnie sprawdzoną gałęzią. |
 | `` r `` | Przebazuj | Przebazuj przełączoną gałąź na wybraną gałąź. |
 | `` d `` | Usuń | Usuń gałąź zdalną ze zdalnego. |
@@ -412,5 +411,4 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` <ctrl+t> `` | Otwórz zewnętrzne narzędzie różnic (git difftool) |  |
 | `` 0 `` | Focus main view |  |
 | `` <enter> `` | Pokaż commity |  |
-| `` w `` | Zobacz opcje drzewa pracy |  |
 | `` / `` | Filtruj bieżący widok po tekście |  |

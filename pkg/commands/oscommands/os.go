@@ -1,15 +1,13 @@
 package oscommands
 
 import (
+	"bytes"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	"github.com/go-errors/errors"
-	"github.com/samber/lo"
 
 	"github.com/atotto/clipboard"
 	"github.com/jesseduffield/lazygit/pkg/common"
@@ -203,62 +201,36 @@ func (c *OSCommand) FileExists(path string) (bool, error) {
 
 // PipeCommands runs a heap of commands and pipes their inputs/outputs together like A | B | C
 func (c *OSCommand) PipeCommands(cmdObjs ...*CmdObj) error {
-	cmds := lo.Map(cmdObjs, func(cmdObj *CmdObj, _ int) *exec.Cmd {
-		return cmdObj.GetCmd()
-	})
+	c.logPipeline(cmdObjs)
 
-	logCmdStr := strings.Join(
-		lo.Map(cmdObjs, func(cmdObj *CmdObj, _ int) string {
-			return cmdObj.ToString()
-		}),
-		" | ",
-	)
-
-	c.LogCommand(logCmdStr, true)
-
-	for i := range len(cmds) - 1 {
-		stdout, err := cmds[i].StdoutPipe()
-		if err != nil {
-			return err
-		}
-
-		cmds[i+1].Stdin = stdout
+	cmds, parentEnds, err := wirePipeline(cmdObjs)
+	if err != nil {
+		return err
 	}
 
-	// keeping this here in case I adapt this code for some other purpose in the future
-	// cmds[len(cmds)-1].Stdout = os.Stdout
+	stderrs := make([]bytes.Buffer, len(cmds))
+	for i := range cmds {
+		cmds[i].Stderr = &stderrs[i]
+	}
+
+	started, startErr := startPipeline(cmds, parentEnds)
 
 	finalErrors := []string{}
 
-	wg := sync.WaitGroup{}
-	wg.Add(len(cmds))
-
-	for _, cmd := range cmds {
-		go utils.Safe(func() {
-			stderr, err := cmd.StderrPipe()
-			if err != nil {
-				c.Log.Error(err)
-			}
-
-			if err := cmd.Start(); err != nil {
-				c.Log.Error(err)
-			}
-
-			if b, err := io.ReadAll(stderr); err == nil {
-				if len(b) > 0 {
-					finalErrors = append(finalErrors, string(b))
-				}
-			}
-
-			if err := cmd.Wait(); err != nil {
-				c.Log.Error(err)
-			}
-
-			wg.Done()
-		})
+	if startErr != nil {
+		c.Log.Error(startErr)
+		finalErrors = append(finalErrors, startErr.Error())
 	}
 
-	wg.Wait()
+	for i, cmd := range cmds[:started] {
+		if err := cmd.Wait(); err != nil {
+			c.Log.Error(err)
+		}
+
+		if stderrs[i].Len() > 0 {
+			finalErrors = append(finalErrors, stderrs[i].String())
+		}
+	}
 
 	if len(finalErrors) > 0 {
 		return errors.New(strings.Join(finalErrors, "\n"))

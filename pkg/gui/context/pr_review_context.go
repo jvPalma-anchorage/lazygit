@@ -474,7 +474,7 @@ func (self *PrReviewContext) loadLocalRefModel(pr int, fetchFor *git_commands.Pu
 			files[i].HeadOid = headOids[files[i].Path]
 		}
 		if files[i].HeadOid == "" {
-			diff, _ := self.c.Git().WorkingTree.ShowFileDiff(mergeBase, headRef, false, files[i].Path, true)
+			diff, _ := self.c.Git().WorkingTree.ShowFileDiff(mergeBase, headRef, false, files[i].Path, "", git_commands.DiffModePlain)
 			files[i].PatchHash = git_commands.HashReviewPatch(diff)
 		}
 	}
@@ -801,7 +801,7 @@ func (self *PrReviewContext) SelectedIsFile() bool {
 // localFilePatch returns the plain (no-color) unified diff of one path between the
 // PR's merge-base and head refs, for the focusable selection surface. Empty on error.
 func (self *PrReviewContext) localFilePatch(path string) string {
-	out, err := self.c.Git().WorkingTree.ShowFileDiff(self.localBase, self.localHeadRef, false, path, true)
+	out, err := self.c.Git().WorkingTree.ShowFileDiff(self.localBase, self.localHeadRef, false, path, "", git_commands.DiffModePlain)
 	if err != nil {
 		self.c.Log.Errorf("rendering local review diff for %s: %v", path, err)
 		return ""

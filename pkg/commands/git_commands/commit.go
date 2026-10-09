@@ -240,24 +240,16 @@ func (self *CommitCommands) AmendHeadCmdObj() *oscommands.CmdObj {
 	return self.cmd.New(cmdArgs)
 }
 
-func (self *CommitCommands) ShowCmdObj(hash string, filterPaths []string) *oscommands.CmdObj {
-	contextSize := self.UserConfig().Git.DiffContextSize
-
-	extDiffCmd := self.pagerConfig.GetExternalDiffCommand()
-	useExtDiffGitConfig := self.pagerConfig.GetUseExternalDiffGitConfig()
+func (self *CommitCommands) ShowCmdObj(hash string, filterPaths []string, mode DiffMode) *oscommands.CmdObj {
 	cmdArgs := NewGitCmd("show").
 		Config("diff.noprefix=false").
-		ConfigIf(extDiffCmd != "", "diff.external="+extDiffCmd).
-		ArgIfElse(extDiffCmd != "" || useExtDiffGitConfig, "--ext-diff", "--no-ext-diff").
+		AddCommonDiffArgs(self.diffRendererConfigManager, self.UserConfig(), mode).
 		Arg("--submodule").
-		Arg("--color="+self.pagerConfig.GetColorArg()).
-		Arg(fmt.Sprintf("--unified=%d", contextSize)).
+		Arg("--color=" + mode.colorArg(self.diffRendererConfigManager)).
 		Arg("--stat").
 		Arg("--decorate").
 		Arg("-p").
 		Arg(hash).
-		ArgIf(self.UserConfig().Git.IgnoreWhitespaceInDiffView, "--ignore-all-space").
-		Arg(fmt.Sprintf("--find-renames=%d%%", self.UserConfig().Git.RenameSimilarityThreshold)).
 		Arg("--").
 		Arg(filterPaths...).
 		Dir(self.repoPaths.worktreePath).

@@ -53,8 +53,9 @@ func (self *PrCommitsController) GetOnRenderToMain() func() {
 		if commit == nil {
 			task = types.NewRenderStringTask(self.c.Tr.PrReviewNoCommits)
 		} else {
-			cmdObj := self.c.Git().Commit.ShowCmdObj(commit.Hash(), nil)
-			task = types.NewRunPtyTask(cmdObj.GetCmd())
+			mode := self.c.Helpers().DiffLine.MainViewDiffMode()
+			cmdObj := self.c.Git().Commit.ShowCmdObj(commit.Hash(), nil, mode)
+			task = types.NewMainViewDiffTask(cmdObj.GetCmd(), mode)
 		}
 
 		self.c.RenderToMainViews(types.RefreshMainOpts{

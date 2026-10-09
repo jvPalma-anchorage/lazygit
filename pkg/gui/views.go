@@ -9,7 +9,6 @@ import (
 	"github.com/jesseduffield/lazygit/pkg/gui/context"
 	"github.com/jesseduffield/lazygit/pkg/theme"
 	"github.com/samber/lo"
-	"golang.org/x/exp/slices"
 )
 
 type viewNameMapping struct {
@@ -54,10 +53,6 @@ func (gui *Gui) orderedViewNameMappings() []viewNameMapping {
 		{viewPtr: &gui.Views.SubCommits, name: "subCommits"},
 		{viewPtr: &gui.Views.CommitFiles, name: "commitFiles"},
 
-		{viewPtr: &gui.Views.Staging, name: "staging"},
-		{viewPtr: &gui.Views.StagingSecondary, name: "stagingSecondary"},
-		{viewPtr: &gui.Views.PatchBuilding, name: "patchBuilding"},
-		{viewPtr: &gui.Views.PatchBuildingSecondary, name: "patchBuildingSecondary"},
 		{viewPtr: &gui.Views.MergeConflicts, name: "mergeConflicts"},
 		{viewPtr: &gui.Views.PrReviewDiff, name: "prReviewDiff"},
 		{viewPtr: &gui.Views.Secondary, name: "secondary"},
@@ -80,6 +75,12 @@ func (gui *Gui) orderedViewNameMappings() []viewNameMapping {
 		{viewPtr: &gui.Views.CommitMessage, name: "commitMessage"},
 		{viewPtr: &gui.Views.CommitDescription, name: "commitDescription"},
 		{viewPtr: &gui.Views.Menu, name: "menu"},
+		// the filter row of a menu that filters as you type: a frame that hangs off
+		// the bottom of the menu and shows the "Filter:" prompt, plus the input
+		// field that sits inside it. Both must come after the menu so that the row's
+		// top border is drawn over the menu's bottom border.
+		{viewPtr: &gui.Views.MenuFilterFrame, name: "menuFilterFrame"},
+		{viewPtr: &gui.Views.MenuFilter, name: "menuFilter"},
 		{viewPtr: &gui.Views.Suggestions, name: "suggestions"},
 		{viewPtr: &gui.Views.Confirmation, name: "confirmation"},
 		{viewPtr: &gui.Views.Prompt, name: "prompt"},
@@ -114,16 +115,12 @@ func (gui *Gui) createAllViews() error {
 	gui.Views.Search.Frame = false
 	gui.Views.Search.Editor = gocui.EditorFunc(gui.searchEditor)
 
-	for _, view := range []*gocui.View{gui.Views.Main, gui.Views.Secondary, gui.Views.Staging, gui.Views.StagingSecondary, gui.Views.PatchBuilding, gui.Views.PatchBuildingSecondary, gui.Views.MergeConflicts, gui.Views.PrReviewDiff} {
+	for _, view := range []*gocui.View{gui.Views.Main, gui.Views.Secondary, gui.Views.MergeConflicts, gui.Views.PrReviewDiff} {
 		view.Wrap = true
 		view.UnderlineHyperLinksOnlyOnHover = true
 		view.AutoRenderHyperLinks = true
 	}
 
-	gui.Views.Staging.Wrap = true
-	gui.Views.StagingSecondary.Wrap = true
-	gui.Views.PatchBuilding.Wrap = true
-	gui.Views.PatchBuildingSecondary.Wrap = true
 	gui.Views.MergeConflicts.Wrap = false
 	gui.Views.Limit.Wrap = true
 
@@ -153,6 +150,16 @@ func (gui *Gui) createAllViews() error {
 
 	gui.Views.Menu.Visible = false
 
+	gui.Views.MenuFilterFrame.Visible = false
+	gui.Views.MenuFilter.Visible = false
+	gui.Views.MenuFilter.Frame = false
+	gui.Views.MenuFilter.Editable = true
+	gui.Views.MenuFilter.Editor = gocui.EditorFunc(gui.menuFilterEditor)
+	// The filter row belongs to the menu: it shares the menu's focus, and keys
+	// that the input field doesn't take are the menu's to handle.
+	gui.Views.MenuFilterFrame.ParentView = gui.Views.Menu
+	gui.Views.MenuFilter.ParentView = gui.Views.Menu
+
 	gui.Views.Tooltip.Visible = false
 	gui.Views.Tooltip.AutoRenderHyperLinks = true
 
@@ -166,20 +173,49 @@ func (gui *Gui) createAllViews() error {
 
 	gui.Views.Snake.FgColor = gocui.ColorGreen
 
+	// The main views show diffs, whose own colors say what each line is: which side of
+	// the diff it's on, and often its syntax highlighting too. A selection painted
+	// across the whole line takes those colors over, which for a whole selected hunk
+	// leaves one unreadable block; so mark the selection with a narrow bar at the left
+	// edge instead, and leave the rest of the line to the diff. Two columns, enough to
+	// read as a marker rather than as an artefact.
+	gui.Views.Main.SelectedLineColorWidth = 2
+	gui.Views.Secondary.SelectedLineColorWidth = 2
+
+	// A tick, for the lines of a commit's diff that are in the custom patch being
+	// built. A plus would collide with a diff's own plus column.
+	gui.Views.Main.InclusionGutterMarker = "✓"
+	gui.Views.Main.InclusionGutterMarkerColor = gocui.ColorGreen
+	gui.Views.Secondary.InclusionGutterMarker = "✓"
+	gui.Views.Secondary.InclusionGutterMarkerColor = gocui.ColorGreen
+
 	return nil
+}
+
+// gocui expects a view's frame runes in this order: the horizontal and the
+// vertical edge, then the top left, top right, bottom left and bottom right
+// corner.
+func frameRunesWithTopCorners(frameRunes []rune, topLeft rune, topRight rune) []rune {
+	return []rune{frameRunes[0], frameRunes[1], topLeft, topRight, frameRunes[4], frameRunes[5]}
 }
 
 func (gui *Gui) configureViewProperties() {
 	frameRunes := []rune{'─', '│', '┌', '┐', '└', '┘'}
+	// The corners for a view that hangs off the bottom of another one, so that the
+	// border they share reads as a divider rather than as two frames touching.
+	teeLeft, teeRight := '├', '┤'
 	switch gui.c.UserConfig().Gui.Border {
 	case "double":
 		frameRunes = []rune{'═', '║', '╔', '╗', '╚', '╝'}
+		teeLeft, teeRight = '╠', '╣'
 	case "rounded":
 		frameRunes = []rune{'─', '│', '╭', '╮', '╰', '╯'}
 	case "hidden":
 		frameRunes = []rune{' ', ' ', ' ', ' ', ' ', ' '}
+		teeLeft, teeRight = ' ', ' '
 	case "bold":
 		frameRunes = []rune{'━', '┃', '┏', '┓', '┗', '┛'}
+		teeLeft, teeRight = '┣', '┫'
 	}
 
 	for _, mapping := range gui.orderedViewNameMappings() {
@@ -189,12 +225,16 @@ func (gui *Gui) configureViewProperties() {
 		(*mapping.viewPtr).SelBgColor = theme.GocuiSelectedLineBgColor
 		(*mapping.viewPtr).SelFgColor = gui.g.SelFgColor
 		(*mapping.viewPtr).InactiveViewSelBgColor = theme.GocuiInactiveViewSelectedLineBgColor
+		(*mapping.viewPtr).SelTextColor = theme.GocuiSelectedLineFgColor
 	}
+
+	gui.Views.MenuFilterFrame.FrameRunes = frameRunesWithTopCorners(frameRunes, teeLeft, teeRight)
 
 	gui.c.SetViewContent(gui.Views.SearchPrefix, gui.c.Tr.SearchPrefix)
 
 	gui.Views.Stash.Title = gui.c.Tr.StashTitle
 	gui.Views.Commits.Title = gui.c.Tr.CommitsTitle
+	gui.Views.ReflogCommits.Title = gui.c.Tr.ReflogCommitsTitle
 	gui.Views.CommitFiles.Title = gui.c.Tr.CommitFiles
 	gui.Views.Branches.Title = gui.c.Tr.BranchesTitle
 	gui.Views.Remotes.Title = gui.c.Tr.RemotesTitle
@@ -206,21 +246,18 @@ func (gui *Gui) configureViewProperties() {
 	gui.Views.PrChecks.Title = gui.c.Tr.PrChecksTitle
 	gui.Views.PrCommits.Title = gui.c.Tr.PrCommitsTitle
 	gui.Views.Worktrees.Title = gui.c.Tr.WorktreesTitle
+	gui.Views.Submodules.Title = gui.c.Tr.SubmodulesTitle
 	gui.Views.Tags.Title = gui.c.Tr.TagsTitle
 	gui.Views.Files.Title = gui.c.Tr.FilesTitle
-	gui.Views.PatchBuilding.Title = gui.c.Tr.Patch
-	gui.Views.PatchBuildingSecondary.Title = gui.c.Tr.CustomPatch
 	gui.Views.MergeConflicts.Title = gui.c.Tr.MergeConflictsTitle
 	gui.Views.Limit.Title = gui.c.Tr.NotEnoughSpace
 	gui.Views.Status.Title = gui.c.Tr.StatusTitle
-	gui.Views.Staging.Title = gui.c.Tr.UnstagedChanges
-	gui.Views.StagingSecondary.Title = gui.c.Tr.StagedChanges
 	gui.Views.CommitMessage.Title = gui.c.Tr.CommitSummary
 	gui.Views.CommitDescription.Title = gui.c.Tr.CommitDescriptionTitle
 	gui.Views.Extras.Title = gui.c.Tr.CommandLog
 	gui.Views.Snake.Title = gui.c.Tr.SnakeTitle
 
-	for _, view := range []*gocui.View{gui.Views.Main, gui.Views.Secondary, gui.Views.Staging, gui.Views.StagingSecondary, gui.Views.PatchBuilding, gui.Views.PatchBuildingSecondary, gui.Views.MergeConflicts, gui.Views.PrReviewDiff} {
+	for _, view := range []*gocui.View{gui.Views.Main, gui.Views.Secondary, gui.Views.MergeConflicts, gui.Views.PrReviewDiff} {
 		view.Title = gui.c.Tr.DiffTitle
 		view.CanScrollPastBottom = gui.c.UserConfig().Gui.ScrollPastBottom
 		view.TabWidth = gui.c.UserConfig().Gui.TabWidth
@@ -230,97 +267,77 @@ func (gui *Gui) configureViewProperties() {
 	gui.Views.CommitDescription.TextArea.AutoWrap = gui.c.UserConfig().Git.Commit.AutoWrapCommitMessage
 	gui.Views.CommitDescription.TextArea.AutoWrapWidth = gui.c.UserConfig().Git.Commit.AutoWrapWidth
 
-	if gui.c.UserConfig().Gui.ShowPanelJumps {
-		keyToTitlePrefix := func(binding config.Keybinding) string {
-			if len(binding) == 0 {
-				return ""
-			}
-			return fmt.Sprintf("[%s]", binding[0])
+	keyToTitlePrefix := func(binding config.Keybinding) string {
+		if len(binding) == 0 {
+			return ""
 		}
-		jumpBindings := gui.c.UserConfig().Keybinding.Universal.JumpToBlock
-		jumpLabels := lo.Map(jumpBindings, func(binding config.Keybinding, _ int) string {
-			return keyToTitlePrefix(binding)
+		return fmt.Sprintf("[%s]", binding[0])
+	}
+
+	// The views that make up each side panel, in panel order. The whole group
+	// shares the panel's jump label.
+	panelViewGroups := lo.Map(gui.sidePanels(), func(panel config.SidePanel, _ int) []*gocui.View {
+		return lo.Map(panel, func(name string, _ int) *gocui.View {
+			view, _ := gui.g.View(sidePanelViewNames[name])
+			return view
 		})
-
-		windowViews := []struct {
-			window string
-			views  []*gocui.View
-		}{
-			{window: "status", views: []*gocui.View{gui.Views.Status}},
-			{window: "files", views: []*gocui.View{gui.Views.Files, gui.Views.Worktrees, gui.Views.Submodules}},
-			{window: "branches", views: []*gocui.View{gui.Views.Branches, gui.Views.Remotes, gui.Views.PullRequests, gui.Views.Tags}},
-			{window: "commits", views: []*gocui.View{gui.Views.Commits, gui.Views.ReflogCommits}},
-			{window: "stash", views: []*gocui.View{gui.Views.Stash}},
+	})
+	// In review mode the side section is the dedicated review layout, so the
+	// jump labels belong to its windows instead.
+	if gui.isReviewMode {
+		panelViewGroups = [][]*gocui.View{
+			{gui.Views.PrList},
+			{gui.Views.PrReview},
+			{gui.Views.PrConversation, gui.Views.PrChecks, gui.Views.PrCommits},
 		}
-		// In review mode the side section is the dedicated review layout, so the
-		// [1]/[2]/[3] jump labels belong to its windows instead.
-		if gui.isReviewMode {
-			windowViews = []struct {
-				window string
-				views  []*gocui.View
-			}{
-				{window: "prList", views: []*gocui.View{gui.Views.PrList}},
-				{window: "prContent", views: []*gocui.View{gui.Views.PrReview}},
-				{window: "prActivity", views: []*gocui.View{gui.Views.PrConversation, gui.Views.PrChecks, gui.Views.PrCommits}},
-			}
+	}
+
+	jumpBindings := gui.c.UserConfig().Keybinding.Universal.JumpToBlock
+	jumpLabelForPanel := func(panelIndex int) string {
+		if !gui.c.UserConfig().Gui.ShowPanelJumps || panelIndex >= len(jumpBindings) {
+			return ""
 		}
+		return keyToTitlePrefix(jumpBindings[panelIndex])
+	}
 
-		windowIndexes := map[string]int{}
-		for i, window := range gui.sideWindowNames() {
-			windowIndexes[window] = i
+	for panelIndex, views := range panelViewGroups {
+		prefix := jumpLabelForPanel(panelIndex)
+		for _, view := range views {
+			view.TitlePrefix = prefix
 		}
+	}
 
-		for _, entry := range windowViews {
-			label := ""
-			if i, ok := windowIndexes[entry.window]; ok && i < len(jumpLabels) {
-				label = jumpLabels[i]
-			}
-			for _, view := range entry.views {
-				view.TitlePrefix = label
-			}
+	gui.focusMainViewJumpLabel = ""
+	if gui.c.UserConfig().Gui.ShowPanelJumps {
+		gui.focusMainViewJumpLabel = keyToTitlePrefix(gui.c.UserConfig().Keybinding.Universal.FocusMainView)
+	}
+	gui.showFocusMainViewJumpLabelOn(gui.Views.Main)
+
+	// Index the tab strips by view so we can both set them on views that are
+	// part of a multi-tab panel and clear them on views that no longer are
+	// (which matters when the config is reloaded and a tab becomes a standalone
+	// panel).
+	type viewTabs struct {
+		tabs  []string
+		index int
+	}
+	tabsByView := map[string]viewTabs{}
+	for _, values := range gui.viewTabMap() {
+		labels := lo.Map(values, func(tabContext context.TabView, _ int) string {
+			return tabContext.Tab
+		})
+		for index, tabContext := range values {
+			tabsByView[tabContext.ViewName] = viewTabs{tabs: labels, index: index}
 		}
-
-		gui.Views.Main.TitlePrefix = keyToTitlePrefix(gui.c.UserConfig().Keybinding.Universal.FocusMainView)
-	} else {
-		gui.Views.Status.TitlePrefix = ""
-
-		gui.Views.Files.TitlePrefix = ""
-		gui.Views.Worktrees.TitlePrefix = ""
-		gui.Views.Submodules.TitlePrefix = ""
-
-		gui.Views.Branches.TitlePrefix = ""
-		gui.Views.Remotes.TitlePrefix = ""
-		gui.Views.PullRequests.TitlePrefix = ""
-		gui.Views.Tags.TitlePrefix = ""
-
-		gui.Views.Commits.TitlePrefix = ""
-		gui.Views.ReflogCommits.TitlePrefix = ""
-
-		gui.Views.Stash.TitlePrefix = ""
-
-		gui.Views.PrList.TitlePrefix = ""
-		gui.Views.PrOverview.TitlePrefix = ""
-		gui.Views.PrReview.TitlePrefix = ""
-		gui.Views.PrConversation.TitlePrefix = ""
-		gui.Views.PrChecks.TitlePrefix = ""
-		gui.Views.PrCommits.TitlePrefix = ""
-
-		gui.Views.Main.TitlePrefix = ""
 	}
 
 	for _, view := range gui.g.Views() {
-		// if the view is in our mapping, we'll set the tabs and the tab index
-		for _, values := range gui.viewTabMap() {
-			index := slices.IndexFunc(values, func(tabContext context.TabView) bool {
-				return tabContext.ViewName == view.Name()
-			})
-
-			if index != -1 {
-				view.Tabs = lo.Map(values, func(tabContext context.TabView, _ int) string {
-					return tabContext.Tab
-				})
-				view.TabIndex = index
-			}
+		// PrListContext sets the prList tabs (its gh-dash sections) itself.
+		if view == gui.Views.PrList {
+			continue
 		}
+		vt := tabsByView[view.Name()]
+		view.Tabs = vt.tabs
+		view.TabIndex = vt.index
 	}
 }

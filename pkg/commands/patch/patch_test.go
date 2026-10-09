@@ -19,6 +19,22 @@ index dcd3485..1ba5540 100644
  ...
 `
 
+const renameWithModificationDiff = `diff --git a/oldname b/newname
+similarity index 62%
+rename from oldname
+rename to newname
+index dcd3485..1ba5540 100644
+--- a/oldname
++++ b/newname
+@@ -1,5 +1,5 @@
+ apple
+-orange
++grape
+ ...
+ ...
+ ...
+`
+
 const addNewlineToEndOfFile = `diff --git a/filename b/filename
 index 80a73f1..e48a11c 100644
 --- a/filename
@@ -104,6 +120,20 @@ index 9320895..6d79956 100644
  lemon
 `
 
+// Two deletions with no line between them: they share a new-file line number
+// (both sit at the same new-file position), so only their old-file line numbers
+// tell them apart.
+const consecutiveDeletions = `diff --git a/filename b/filename
+index 9320895..6d79956 100644
+--- a/filename
++++ b/filename
+@@ -1,4 +1,2 @@
+ apple
+-grape
+-pear
+ lemon
+`
+
 const newFile = `diff --git a/newfile b/newfile
 new file mode 100644
 index 0000000..4e680cc
@@ -152,6 +182,7 @@ func TestTransform(t *testing.T) {
 		firstLineIndex int
 		lastLineIndex  int
 		reverse        bool
+		stripRename    bool
 		expected       string
 	}
 
@@ -517,6 +548,43 @@ func TestTransform(t *testing.T) {
  lemon
 `,
 		},
+		{
+			testName:       "renamed file, whole change selected, strips the rename so only the content change is applied",
+			firstLineIndex: 9,
+			lastLineIndex:  10,
+			stripRename:    true,
+			diffText:       renameWithModificationDiff,
+			expected: `diff --git a/newname b/newname
+index dcd3485..1ba5540 100644
+--- a/newname
++++ b/newname
+@@ -1,5 +1,5 @@
+ apple
+-orange
++grape
+ ...
+ ...
+ ...
+`,
+		},
+		{
+			testName:       "renamed file, only removal selected, strips the rename",
+			firstLineIndex: 9,
+			lastLineIndex:  9,
+			stripRename:    true,
+			diffText:       renameWithModificationDiff,
+			expected: `diff --git a/newname b/newname
+index dcd3485..1ba5540 100644
+--- a/newname
++++ b/newname
+@@ -1,5 +1,4 @@
+ apple
+-orange
+ ...
+ ...
+ ...
+`,
+		},
 	}
 
 	for _, s := range scenarios {
@@ -527,6 +595,7 @@ func TestTransform(t *testing.T) {
 				Transform(TransformOpts{
 					Reverse:             s.reverse,
 					FileNameOverride:    s.filename,
+					StripRename:         s.stripRename,
 					IncludedLineIndices: lineIndices,
 				}).
 				FormatPlain()
@@ -627,16 +696,151 @@ func TestLineNumberOfLine(t *testing.T) {
 	}
 }
 
-func TestOldLineNumberOfLine(t *testing.T) {
-	// simpleDiff has 4 header lines, then the hunk header at idx 4, then:
-	// idx5 " apple" (ctx, old 1), idx6 "-orange" (del, old 2),
-	// idx7 "+grape" (add), idx8/9/10 context (old 3/4/5).
-	indexes := []int{4, 5, 6, 7, 8, 9, 10, 1000}
-	expecteds := []int{1, 1, 2, 3, 3, 4, 5, 5}
+func TestIsWellFormed(t *testing.T) {
+	// The body of a diff as rendered with the +/- markers moved out of the text
+	// and into a gutter: every body line now reads as context, so the lengths no
+	// longer match the header.
+	const gutterMangled = `diff --git a/filename b/filename
+index 9320895..6d79956 100644
+--- a/filename
++++ b/filename
+@@ -1,4 +1,2 @@
+ apple
+ grape
+ pear
+ lemon
+`
 
-	patch := Parse(simpleDiff)
-	for i, idx := range indexes {
-		assert.Equal(t, expecteds[i], patch.OldLineNumberOfLine(idx))
+	scenarios := []struct {
+		testName string
+		patchStr string
+		expected bool
+	}{
+		{"simpleDiff", simpleDiff, true},
+		{"renameWithModificationDiff", renameWithModificationDiff, true},
+		{"addNewlineToEndOfFile", addNewlineToEndOfFile, true},
+		{"twoHunks", twoHunks, true},
+		{"consecutiveDeletions", consecutiveDeletions, true},
+		{"newFile", newFile, true},
+		{"deletedFile", deletedFile, true},
+		{"addNewlineToPreviouslyEmptyFile", addNewlineToPreviouslyEmptyFile, true},
+		{"exampleHunk", exampleHunk, true},
+		{"gutterMangled", gutterMangled, false},
+	}
+
+	for _, s := range scenarios {
+		t.Run(s.testName, func(t *testing.T) {
+			assert.Equal(t, s.expected, Parse(s.patchStr).IsWellFormed())
+		})
+	}
+}
+
+func TestIsWellFormedSoFar(t *testing.T) {
+	// A diff read only as far as the middle of its second hunk.
+	const cutShort = `diff --git a/filename b/filename
+index e48a11c..b2ab81b 100644
+--- a/filename
++++ b/filename
+@@ -1,5 +1,5 @@
+ apple
+-grape
++orange
+ ...
+ ...
+ ...
+@@ -8,6 +8,8 @@ grape
+ ...
+ ...
+`
+
+	// The same diff cut short in its first hunk, so that the second is missing
+	// entirely rather than short.
+	const cutShortInTheFirstHunk = `diff --git a/filename b/filename
+index e48a11c..b2ab81b 100644
+--- a/filename
++++ b/filename
+@@ -1,5 +1,5 @@
+ apple
+-grape
+`
+
+	// A rendering with the +/- markers moved into a gutter, cut short: reading the
+	// changes as context makes the hunk longer than its header declares, not shorter,
+	// so it doesn't pass for a diff we only have the beginning of.
+	const gutterMangledAndCutShort = `diff --git a/filename b/filename
+index 9320895..6d79956 100644
+--- a/filename
++++ b/filename
+@@ -1,4 +1,2 @@
+ apple
+ grape
+ pear
+ lemon
+ melon
+`
+
+	scenarios := []struct {
+		testName string
+		patchStr string
+		expected bool
+	}{
+		{"simpleDiff", simpleDiff, true},
+		{"twoHunks", twoHunks, true},
+		{"cutShort", cutShort, true},
+		{"cutShortInTheFirstHunk", cutShortInTheFirstHunk, true},
+		{"gutterMangledAndCutShort", gutterMangledAndCutShort, false},
+	}
+
+	for _, s := range scenarios {
+		t.Run(s.testName, func(t *testing.T) {
+			assert.Equal(t, s.expected, Parse(s.patchStr).IsWellFormedSoFar())
+		})
+	}
+}
+
+func TestOldLineNumberOfLine(t *testing.T) {
+	type scenario struct {
+		testName  string
+		patchStr  string
+		indexes   []int
+		expecteds []int
+	}
+
+	scenarios := []scenario{
+		{
+			testName:  "twoChangesInOneHunk",
+			patchStr:  twoChangesInOneHunk,
+			indexes:   []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 1000},
+			expecteds: []int{1, 1, 1, 1, 1, 1, 2, 3, 3, 4, 5, 5, 5},
+		},
+		{
+			testName:  "consecutiveDeletions",
+			patchStr:  consecutiveDeletions,
+			indexes:   []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 1000},
+			expecteds: []int{1, 1, 1, 1, 1, 1, 2, 3, 4, 4},
+		},
+		{
+			testName:  "renameWithModificationDiff",
+			patchStr:  renameWithModificationDiff,
+			indexes:   []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 1000},
+			expecteds: []int{1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 3, 4, 5, 5},
+		},
+		{
+			testName:  "simpleDiff",
+			patchStr:  simpleDiff,
+			indexes:   []int{4, 5, 6, 7, 8, 9, 10, 1000},
+			expecteds: []int{1, 1, 2, 3, 3, 4, 5, 5},
+		},
+	}
+
+	for _, s := range scenarios {
+		t.Run(s.testName, func(t *testing.T) {
+			for i, idx := range s.indexes {
+				patch := Parse(s.patchStr)
+				result := patch.OldLineNumberOfLine(idx)
+				assert.Equal(t, s.expecteds[i], result)
+			}
+		})
 	}
 }
 
@@ -720,67 +924,6 @@ func TestAdjustLineNumber(t *testing.T) {
 				result := patch.AdjustLineNumber(oldLineNumber)
 				assert.Equal(t, s.expectedResults[idx], result)
 			}
-		})
-	}
-}
-
-func TestIsSingleHunkForWholeFile(t *testing.T) {
-	scenarios := []struct {
-		testName       string
-		patchStr       string
-		expectedResult bool
-	}{
-		{
-			testName:       "simpleDiff",
-			patchStr:       simpleDiff,
-			expectedResult: false,
-		},
-		{
-			testName:       "addNewlineToEndOfFile",
-			patchStr:       addNewlineToEndOfFile,
-			expectedResult: false,
-		},
-		{
-			testName:       "removeNewlinefromEndOfFile",
-			patchStr:       removeNewlinefromEndOfFile,
-			expectedResult: false,
-		},
-		{
-			testName:       "twoHunks",
-			patchStr:       twoHunks,
-			expectedResult: false,
-		},
-		{
-			testName:       "twoChangesInOneHunk",
-			patchStr:       twoChangesInOneHunk,
-			expectedResult: false,
-		},
-		{
-			testName:       "newFile",
-			patchStr:       newFile,
-			expectedResult: true,
-		},
-		{
-			testName:       "deletedFile",
-			patchStr:       deletedFile,
-			expectedResult: true,
-		},
-		{
-			testName:       "addNewlineToPreviouslyEmptyFile",
-			patchStr:       addNewlineToPreviouslyEmptyFile,
-			expectedResult: true,
-		},
-		{
-			testName:       "exampleHunk",
-			patchStr:       exampleHunk,
-			expectedResult: false,
-		},
-	}
-
-	for _, s := range scenarios {
-		t.Run(s.testName, func(t *testing.T) {
-			patch := Parse(s.patchStr)
-			assert.Equal(t, s.expectedResult, patch.IsSingleHunkForWholeFile())
 		})
 	}
 }

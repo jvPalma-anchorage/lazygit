@@ -84,7 +84,7 @@ func (self *PrChecksController) enter() error {
 		Pair: self.c.MainViewPairs().Normal,
 		Main: &types.ViewUpdateOpts{
 			Title: self.c.Tr.PrChecksTitle,
-			Task:  types.NewRunPtyTask(cmdObj.GetCmd()),
+			Task:  types.NewRunDiffRendererTask(cmdObj.GetCmd()),
 		},
 	})
 	return nil

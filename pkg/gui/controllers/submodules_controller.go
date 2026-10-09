@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/jesseduffield/lazygit/pkg/commands/git_commands"
+
 	"github.com/jesseduffield/lazygit/pkg/commands/models"
 	"github.com/jesseduffield/lazygit/pkg/gocui"
 	"github.com/jesseduffield/lazygit/pkg/gui/context"
@@ -123,8 +125,8 @@ func (self *SubmodulesController) GetOnRenderToMain() func() {
 				if file == nil {
 					task = types.NewRenderStringTask(prefix)
 				} else {
-					cmdObj := self.c.Git().WorkingTree.WorktreeFileDiffCmdObj(file, false, !file.HasUnstagedChanges && file.HasStagedChanges, nil)
-					task = types.NewRunCommandTaskWithPrefix(cmdObj.GetCmd(), prefix)
+					cmdObj := self.c.Git().WorkingTree.WorktreeFileDiffCmdObj(file, git_commands.DiffModeRendered, !file.HasUnstagedChanges && file.HasStagedChanges, file.Names())
+					task = types.NewRunCommandTaskWithPrefix(cmdObj.GetCmd(), types.StaticPrefix(prefix))
 				}
 			}
 
@@ -164,7 +166,7 @@ func (self *SubmodulesController) add() error {
 									return err
 								}
 
-								self.c.Refresh(types.RefreshOptions{Scope: []types.RefreshableView{types.SUBMODULES}})
+								self.c.RefreshFromWorker(types.RefreshOptions{Scope: []types.RefreshableView{types.SUBMODULES}})
 								return nil
 							})
 						},
@@ -193,7 +195,7 @@ func (self *SubmodulesController) editURL(submodule *models.SubmoduleConfig) err
 					return err
 				}
 
-				self.c.Refresh(types.RefreshOptions{Scope: []types.RefreshableView{types.SUBMODULES}})
+				self.c.RefreshFromWorker(types.RefreshOptions{Scope: []types.RefreshableView{types.SUBMODULES}})
 				return nil
 			})
 		},
@@ -210,7 +212,7 @@ func (self *SubmodulesController) init(submodule *models.SubmoduleConfig) error 
 			return err
 		}
 
-		self.c.Refresh(types.RefreshOptions{Scope: []types.RefreshableView{types.SUBMODULES}})
+		self.c.RefreshFromWorker(types.RefreshOptions{Scope: []types.RefreshableView{types.SUBMODULES}})
 		return nil
 	})
 }
@@ -229,7 +231,7 @@ func (self *SubmodulesController) openBulkActionsMenu() error {
 							return err
 						}
 
-						self.c.Refresh(types.RefreshOptions{Scope: []types.RefreshableView{types.SUBMODULES}})
+						self.c.RefreshFromWorker(types.RefreshOptions{Scope: []types.RefreshableView{types.SUBMODULES}})
 						return nil
 					})
 				},
@@ -244,7 +246,7 @@ func (self *SubmodulesController) openBulkActionsMenu() error {
 							return err
 						}
 
-						self.c.Refresh(types.RefreshOptions{Scope: []types.RefreshableView{types.SUBMODULES}})
+						self.c.RefreshFromWorker(types.RefreshOptions{Scope: []types.RefreshableView{types.SUBMODULES}})
 						return nil
 					})
 				},
@@ -259,7 +261,7 @@ func (self *SubmodulesController) openBulkActionsMenu() error {
 							return err
 						}
 
-						self.c.Refresh(types.RefreshOptions{Scope: []types.RefreshableView{types.SUBMODULES}})
+						self.c.RefreshFromWorker(types.RefreshOptions{Scope: []types.RefreshableView{types.SUBMODULES}})
 						return nil
 					})
 				},
@@ -274,7 +276,7 @@ func (self *SubmodulesController) openBulkActionsMenu() error {
 							return err
 						}
 
-						self.c.Refresh(types.RefreshOptions{Scope: []types.RefreshableView{types.SUBMODULES}})
+						self.c.RefreshFromWorker(types.RefreshOptions{Scope: []types.RefreshableView{types.SUBMODULES}})
 						return nil
 					})
 				},
@@ -292,7 +294,7 @@ func (self *SubmodulesController) update(submodule *models.SubmoduleConfig) erro
 			return err
 		}
 
-		self.c.Refresh(types.RefreshOptions{Scope: []types.RefreshableView{types.SUBMODULES}})
+		self.c.RefreshFromWorker(types.RefreshOptions{Scope: []types.RefreshableView{types.SUBMODULES}})
 		return nil
 	})
 }

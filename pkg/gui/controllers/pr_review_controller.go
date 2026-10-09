@@ -254,8 +254,9 @@ func (self *PrReviewController) renderLocalRefDiff(ctx *context.PrReviewContext)
 	}
 
 	diffTask := func(paths []string) types.UpdateTask {
-		cmdObj := self.c.Git().WorkingTree.ShowFileDiffCmdObj(from, to, false, paths, false)
-		return types.NewRunPtyTask(cmdObj.GetCmd())
+		mode := self.c.Helpers().DiffLine.MainViewDiffMode()
+		cmdObj := self.c.Git().WorkingTree.ShowFileDiffCmdObj(from, to, false, paths, mode)
+		return types.NewMainViewDiffTask(cmdObj.GetCmd(), mode)
 	}
 
 	if len(unviewed) > 0 && len(viewed) > 0 {

@@ -9,8 +9,13 @@ var HideStatusPanelRenumbersJumpKeys = NewIntegrationTest(NewIntegrationTestArgs
 	Description:  "With the status panel hidden, the first jump key and the [1] badge map to the Files panel",
 	ExtraCmdArgs: []string{},
 	Skip:         false,
-	SetupConfig: func(config *config.AppConfig) {
-		config.GetUserConfig().Gui.ShowStatusPanel = false
+	SetupConfig: func(cfg *config.AppConfig) {
+		cfg.GetUserConfig().Gui.SidePanels = []config.SidePanel{
+			{"files", "worktrees", "submodules"},
+			{"branches", "remotes", "tags"},
+			{"commits", "reflog"},
+			{"stash"},
+		}
 	},
 	SetupRepo: func(shell *Shell) {
 		shell.CreateFileAndAdd("file1", "content\n")

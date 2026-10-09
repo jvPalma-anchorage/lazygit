@@ -38,12 +38,12 @@ func NewPrReviewDiffContext(c *ContextCommon) *PrReviewDiffContext {
 	self := &PrReviewDiffContext{c: c, cachedWidth: -1, selectedRow: -1, rangeAnchor: -1}
 
 	baseContext := NewBaseContext(NewBaseContextOpts{
-		Kind:             types.MAIN_CONTEXT,
-		View:             c.Views().PrReviewDiff,
-		WindowName:       "main",
-		Key:              PR_REVIEW_DIFF_CONTEXT_KEY,
-		Focusable:        true,
-		HighlightOnFocus: true,
+		Kind:                 types.MAIN_CONTEXT,
+		View:                 c.Views().PrReviewDiff,
+		WindowName:           "main",
+		Key:                  PR_REVIEW_DIFF_CONTEXT_KEY,
+		Focusable:            true,
+		HasSelectableContent: true,
 		// The diff view is hidden until the user enters it, so it has no width when
 		// first focused. This makes the layout call HandleRender once the view is
 		// sized, so the content renders at the right width instead of staying blank.

@@ -28,15 +28,16 @@ import (
 // the range.
 
 var RangeSelect = NewIntegrationTest(NewIntegrationTestArgs{
-	Description:  "Verify range select works as expected in list views and in patch explorer views",
+	Description:  "Verify range select works as expected in list views and in focused main view",
 	ExtraCmdArgs: []string{},
 	Skip:         false,
 	SetupConfig: func(config *config.AppConfig) {
-		config.GetUserConfig().Gui.UseHunkModeInStagingView = false
+		config.GetUserConfig().Gui.UseHunkModeInDiffView = false
+		config.GetUserConfig().Gui.ExpandFocusedSidePanel = true
 	},
 	SetupRepo: func(shell *Shell) {
 		// We're testing the commits view as our representative list context,
-		// as well as the staging view, and we're using the exact same code to test
+		// as well as the focused main view, and we're using the exact same code to test
 		// both to ensure they have the exact same behaviour (they are currently implemented
 		// separately)
 		// In both views we're going to have 10 lines starting from 'line 1' going down to
@@ -51,6 +52,7 @@ var RangeSelect = NewIntegrationTest(NewIntegrationTestArgs{
 		}
 		shell.CreateFileAndAdd("file1", "staged\n")
 		shell.UpdateFile("file1", fileContent)
+		shell.NewBranch("branch1").NewBranch("branch2")
 	},
 	Run: func(t *TestDriver, keys config.KeybindingConfig) {
 		assertRangeSelectBehaviour := func(v *ViewDriver, focusOtherView func(), lineIdxOfFirstItem int) {
@@ -178,6 +180,47 @@ var RangeSelect = NewIntegrationTest(NewIntegrationTestArgs{
 			).
 			PressEnter()
 
-		assertRangeSelectBehaviour(t.Views().Staging().IsFocused(), func() { t.Views().Staging().PressTab() }, 6)
+		assertRangeSelectBehaviour(t.Views().Main().IsFocused(), func() { t.Views().Main().PressTab() }, 6)
+
+		t.Views().Branches().Focus()
+		t.Views().Branches().
+			SelectedLines(
+				Contains("branch2"),
+			)
+		t.Views().Commits().
+			ClickAndHold(1, 3).
+			MouseMoveToView(t.Views().Branches(), 1, 2).
+			SelectedLines(
+				Contains("line 1"),
+				Contains("line 2"),
+				Contains("line 3"),
+				Contains("line 4"),
+			).
+			Tap(func() {
+				t.Views().Branches().SelectedLines(
+					Contains("branch2"),
+				)
+			}).
+			MouseRelease()
+
+		t.Views().Branches().Focus()
+		t.Views().Commits().
+			ClickAndHold(1, 0).
+			SelectedLines(
+				Contains("line 1"),
+			).
+			RepeatMouseMove().
+			SelectedLines(
+				Contains("line 1"),
+			).
+			MouseMove(1, 3).
+			SelectedLines(
+				Contains("line 1"),
+				Contains("line 2"),
+				Contains("line 3"),
+				Contains("line 4"),
+			).
+			MouseRelease().
+			Click(1, 0)
 	},
 })

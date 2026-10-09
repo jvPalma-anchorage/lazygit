@@ -36,12 +36,11 @@ func (self *GitHubCommands) SearchPrs(filters string, defaultRepo string) ([]PrL
 		filters += " repo:" + defaultRepo
 	}
 
-	cmdArgs := []string{
+	cmdArgs := append([]string{
 		"gh", "search", "prs",
 		"--json", "number,title,state,author,repository",
 		"--limit", "30",
-	}
-	cmdArgs = append(cmdArgs, strings.Fields(filters)...)
+	}, strings.Fields(filters)...)
 
 	stdout, stderr, err := self.cmd.New(cmdArgs).DontLog().RunWithOutputs()
 	if err != nil {

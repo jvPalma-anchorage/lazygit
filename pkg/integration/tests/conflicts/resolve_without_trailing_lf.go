@@ -24,6 +24,8 @@ var ResolveWithoutTrailingLf = NewIntegrationTest(NewIntegrationTestArgs{
 			RunCommandExpectError([]string{"git", "merge", "--no-edit", "branch2"})
 	},
 	Run: func(t *TestDriver, keys config.KeybindingConfig) {
+		t.Common().PretendMergeOrRebaseStartedInLazygit()
+
 		t.Views().Files().
 			IsFocused().
 			Lines(
@@ -52,6 +54,6 @@ var ResolveWithoutTrailingLf = NewIntegrationTest(NewIntegrationTestArgs{
 				Contains("M  file").IsSelected(),
 			)
 
-		t.Views().Main().Content(Contains("-a1\n+a2\n").DoesNotContain("-no eol"))
+		t.Views().Secondary().Content(Contains("-a1\n+a2\n").DoesNotContain("-no eol"))
 	},
 })

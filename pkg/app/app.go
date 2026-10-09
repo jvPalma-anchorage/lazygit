@@ -15,6 +15,7 @@ import (
 	"github.com/spf13/afero"
 
 	appTypes "github.com/jesseduffield/lazygit/pkg/app/types"
+	"github.com/jesseduffield/lazygit/pkg/commands/direnv"
 	"github.com/jesseduffield/lazygit/pkg/commands/git_commands"
 	"github.com/jesseduffield/lazygit/pkg/commands/oscommands"
 	"github.com/jesseduffield/lazygit/pkg/common"
@@ -78,10 +79,9 @@ func Run(
 	}
 }
 
-func NewCommon(config config.AppConfigurer) (*common.Common, error) {
+func NewCommon(config config.AppConfigurer, log *logrus.Entry) (*common.Common, error) {
 	userConfig := config.GetUserConfig()
 	appState := config.GetAppState()
-	log := newLogger(config)
 	// Initialize with English for the time being; the real translation set for
 	// the configured language will be read after reading the user config
 	tr := i18n.EnglishTranslationSet()
@@ -97,8 +97,8 @@ func NewCommon(config config.AppConfigurer) (*common.Common, error) {
 	return cmn, nil
 }
 
-func newLogger(cfg config.AppConfigurer) *logrus.Entry {
-	if cfg.GetDebug() {
+func NewLogger(debug bool) *logrus.Entry {
+	if debug {
 		logPath, err := config.LogPath()
 		if err != nil {
 			log.Fatal(err)
@@ -321,6 +321,17 @@ func openRecentRepo(app *App) bool {
 	for _, repoDir := range app.Config.GetAppState().RecentRepos {
 		if isRepo, _ := isDirectoryAGitRepository(repoDir); isRepo {
 			if err := os.Chdir(repoDir); err == nil {
+				// We're still in setup, before the gui exists, so we can't show the approval popup
+				// that DispatchSwitchTo offers for blocked .envrc files; just log and move on.
+				// Also, the logs only go to the debug log, not the Command Log, because that's not
+				// available yet, either.
+				result := direnv.Load(app.OSCommand.Cmd)
+				if result.Message != "" {
+					app.Log.WithField("message", result.Message).Info("direnv")
+				}
+				if result.Err != nil {
+					app.Log.WithError(result.Err).Warn("direnv load failed")
+				}
 				return true
 			}
 		}
@@ -389,12 +400,8 @@ func (app *App) setupRepo(
 		}
 
 		// check if we have a recent repo we can open
-		for _, repoDir := range app.Config.GetAppState().RecentRepos {
-			if isRepo, _ := isDirectoryAGitRepository(repoDir); isRepo {
-				if err := os.Chdir(repoDir); err == nil {
-					return true, nil
-				}
-			}
+		if openRecentRepo(app) {
+			return true, nil
 		}
 
 		fmt.Fprintln(os.Stderr, app.Tr.NoRecentRepositories)
@@ -412,7 +419,7 @@ func (app *App) setupRepo(
 			os.Exit(0)
 		}
 
-		if didOpenRepo := openRecentRepo(app); didOpenRepo {
+		if openRecentRepo(app) {
 			return true, nil
 		}
 

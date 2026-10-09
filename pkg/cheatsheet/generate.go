@@ -19,12 +19,12 @@ import (
 	"strings"
 
 	"github.com/jesseduffield/generics/maps"
-	"github.com/jesseduffield/lazycore/pkg/utils"
 	"github.com/jesseduffield/lazygit/pkg/app"
 	"github.com/jesseduffield/lazygit/pkg/config"
 	"github.com/jesseduffield/lazygit/pkg/gocui"
 	"github.com/jesseduffield/lazygit/pkg/gui/types"
 	"github.com/jesseduffield/lazygit/pkg/i18n"
+	"github.com/jesseduffield/lazygit/pkg/utils"
 	"github.com/samber/lo"
 )
 
@@ -49,7 +49,7 @@ func CommandToRun() string {
 }
 
 func GetKeybindingsDir() string {
-	return utils.GetLazyRootDirectory() + "/docs-master/keybindings"
+	return utils.MustFindLazygitRootDirectory() + "/docs-master/keybindings"
 }
 
 func generateAtDir(cheatsheetDir string) {
@@ -58,10 +58,11 @@ func generateAtDir(cheatsheetDir string) {
 		log.Fatal(err)
 	}
 	mConfig := config.NewDummyAppConfig()
+	logger := app.NewLogger(mConfig.GetDebug())
 
 	for lang := range translationSetsByLang {
 		mConfig.GetUserConfig().Gui.Language = lang
-		common, err := app.NewCommon(mConfig)
+		common, err := app.NewCommon(mConfig, logger)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -127,9 +128,7 @@ func localisedTitle(tr *i18n.TranslationSet, str string) string {
 		"prompt":            tr.PromptTitle,
 		"information":       tr.InformationTitle,
 		"main":              tr.NormalTitle,
-		"patchBuilding":     tr.PatchBuildingTitle,
 		"mergeConflicts":    tr.MergingTitle,
-		"staging":           tr.StagingTitle,
 		"menu":              tr.MenuTitle,
 		"search":            tr.SearchTitle,
 		"secondary":         tr.SecondaryTitle,
@@ -148,12 +147,7 @@ func localisedTitle(tr *i18n.TranslationSet, str string) string {
 }
 
 func getBindingSections(bindings []*types.Binding, tr *i18n.TranslationSet) []*bindingSection {
-	excludedViews := []string{"stagingSecondary", "patchBuildingSecondary"}
 	bindingsToDisplay := lo.Filter(bindings, func(binding *types.Binding, _ int) bool {
-		if lo.Contains(excludedViews, binding.ViewName) {
-			return false
-		}
-
 		return (binding.Description != "" || binding.Alternative != "") && len(binding.Keys) > 0
 	})
 
@@ -204,7 +198,7 @@ func getHeader(binding *types.Binding, tr *i18n.TranslationSet) header {
 
 func formatSections(tr *i18n.TranslationSet, bindingSections []*bindingSection) string {
 	var content strings.Builder
-	content.WriteString(fmt.Sprintf("# Lazygit %s\n", tr.Keybindings))
+	fmt.Fprintf(&content, "# Lazygit %s\n", tr.Keybindings)
 
 	for _, section := range bindingSections {
 		content.WriteString(formatTitle(section.title))

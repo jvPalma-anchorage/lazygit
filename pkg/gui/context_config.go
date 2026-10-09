@@ -15,32 +15,11 @@ func (gui *Gui) contextTree() *context.ContextTree {
 	return context.NewContextTree(contextCommon)
 }
 
-// sideWindowNames returns the visible side-panel windows for the current mode: the
-// dedicated PR review windows when booted into review mode, otherwise the normal
-// config-gated set. It reads the Gui-level isReviewMode flag (not gui.State) so it
-// is correct even when reached on the first config load (configureViewProperties),
-// which runs before the repo state exists.
-func (gui *Gui) sideWindowNames() []string {
-	if gui.isReviewMode {
-		return helpers.ReviewSideWindowNames()
-	}
-	return helpers.SideWindowNames(gui.c.UserConfig())
-}
-
+// isSideWindowVisible reports whether the window is part of the side panel
+// layout. It reads the Gui-level isReviewMode flag (not gui.State) so it is
+// correct even before the repo state exists.
 func (gui *Gui) isSideWindowVisible(windowName string) bool {
-	return lo.Contains(gui.sideWindowNames(), windowName)
-}
-
-// redirectFocusFromHiddenSideWindow moves focus to the Files panel when the side
-// window we are currently focused on (or whose main view we're in) has just been
-// hidden by a config reload. Pushing the Files side context also clears the
-// hidden context off the stack, so later Escape/Pop and CurrentSide() calls
-// can't resurrect it. It's a no-op when the current side window is still visible.
-func (gui *Gui) redirectFocusFromHiddenSideWindow() {
-	currentSideContext := gui.c.Context().CurrentSide()
-	if !gui.isSideWindowVisible(currentSideContext.GetWindowName()) {
-		gui.c.Context().Push(gui.defaultSideContext(), types.OnFocusOpts{})
-	}
+	return lo.Contains(helpers.SideWindowNames(gui.c.UserConfig(), gui.isReviewMode), windowName)
 }
 
 func (gui *Gui) defaultSideContext() types.Context {

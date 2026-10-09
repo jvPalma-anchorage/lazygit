@@ -21,7 +21,6 @@ type TranslationSet struct {
 	EasterEgg                             string
 	UnstagedChanges                       string
 	StagedChanges                         string
-	StagingTitle                          string
 	MergingTitle                          string
 	NormalTitle                           string
 	LogTitle                              string
@@ -101,6 +100,10 @@ type TranslationSet struct {
 	MergeConflictPressEnterToResolve      string
 	MergeConflictKeepFile                 string
 	MergeConflictDeleteFile               string
+	MergeConflictTakeCurrentCommit        string
+	MergeConflictTakeIncomingCommit       string
+	SubmoduleMergeConflictDescription     string
+	StageConflictsRangeDisabled           string
 	Checkout                              string
 	CheckoutTooltip                       string
 	CantCheckoutBranchWhilePulling        string
@@ -231,11 +234,18 @@ type TranslationSet struct {
 	StashChanges                          string
 	RenameStash                           string
 	RenameStashPrompt                     string
-	OpenConfig                            string
 	EditConfig                            string
 	ForcePush                             string
 	ForcePushPrompt                       string
 	ForcePushDisabled                     string
+	ForcePushBranchesPrompt               string
+	ForcePushBranchesDisabled             string
+	BranchesBelowHaveCommitsToPush        string
+	PushBranchAndBranchesBelow            string
+	PushOnlyCurrentBranch                 string
+	BranchesBelowHaveChangedOnRemote      string
+	PullBranchAndBranchesBelow            string
+	PullOnlyCurrentBranch                 string
 	UpdatesRejected                       string
 	UpdatesRejectedAndForcePushDisabled   string
 	CheckForUpdate                        string
@@ -283,6 +293,8 @@ type TranslationSet struct {
 	UnsupportedGitService                 string
 	CopyPullRequestURL                    string
 	OpenPullRequestInBrowser              string
+	OpenPullRequestAtSelectedLine         string
+	OpenPullRequestAtSelectedLineTooltip  string
 	NoPullRequestForBranch                string
 	NoBranchOnRemote                      string
 	Fetch                                 string
@@ -299,16 +311,21 @@ type TranslationSet struct {
 	DiscardSelectionTooltip               string
 	ToggleSelectHunk                      string
 	SelectHunk                            string
+	NothingToSelectInDiff                 string
+	NotAvailableInDiffingMode             string
+	NotAvailableForCustomPatch            string
+	CommitNotInPullRequest                string
+	CommitsNotInPullRequest               string
+	CommitsInSeveralPullRequests          string
 	SelectLineByLine                      string
 	ToggleSelectHunkTooltip               string
-	HunkStagingHint                       string
 	ToggleSelectionForPatch               string
 	RemoveSelectionFromPatch              string
 	RemoveSelectionFromPatchTooltip       string
 	EditHunk                              string
 	EditHunkTooltip                       string
-	ToggleStagingView                     string
-	ToggleStagingViewTooltip              string
+	ToggleDiffPane                        string
+	ToggleDiffPaneTooltip                 string
 	ReturnToFilesPanel                    string
 	FastForward                           string
 	FastForwardTooltip                    string
@@ -317,7 +334,7 @@ type TranslationSet struct {
 	ViewConflictsMenuItem                 string
 	AbortMenuItem                         string
 	PickHunk                              string
-	PickAllHunks                          string
+	PickBothHunks                         string
 	ViewMergeRebaseOptions                string
 	ViewMergeRebaseOptionsTooltip         string
 	ViewMergeOptions                      string
@@ -329,6 +346,9 @@ type TranslationSet struct {
 	NotMidRebase                          string
 	MustSelectFixupCommit                 string
 	RecentRepos                           string
+	RecentReposRepoLabel                  string
+	RecentReposBranchLabel                string
+	RecentReposPathLabel                  string
 	MergeOptionsTitle                     string
 	RebaseOptionsTitle                    string
 	CherryPickOptionsTitle                string
@@ -430,7 +450,6 @@ type TranslationSet struct {
 	PrActivityTitle                       string
 	PrFilesChangedTitle                   string
 	RemoteBranchesTitle                   string
-	PatchBuildingTitle                    string
 	InformationTitle                      string
 	SecondaryTitle                        string
 	ReflogCommitsTitle                    string
@@ -448,13 +467,23 @@ type TranslationSet struct {
 	FwdNoUpstream                         string
 	FwdNoLocalUpstream                    string
 	FwdCommitsToPush                      string
+	FwdLocalOnlyCommits                   string
+	FwdUncommittedChanges                 string
+	FwdBranchRebasingOrBisecting          string
 	PullRequestNoUpstream                 string
+	PullRequestChecksPassing              string
+	PullRequestChecksPending              string
+	PullRequestChecksFailing              string
+	PullRequestChecksError                string
+	PullRequestChecksExpected             string
 	ErrorOccurred                         string
 	ConflictLabel                         string
 	PendingRebaseTodosSectionHeader       string
 	PendingCherryPicksSectionHeader       string
 	PendingRevertsSectionHeader           string
 	CommitsSectionHeader                  string
+	MoveCommitsHere                       string
+	MovingCommitsHere                     string
 	YouDied                               string
 	RewordNotSupported                    string
 	ChangingThisActionIsNotAllowed        string
@@ -471,6 +500,13 @@ type TranslationSet struct {
 	AskQuestion                           string
 	PrevHunk                              string
 	NextHunk                              string
+	PrevFileInDiff                        string
+	NextFileInDiff                        string
+	JumpToFile                            string
+	JumpToFileInDiff                      string
+	JumpToFileInDiffTooltip               string
+	OnlyOneFileInDiff                     string
+	NoFileInDiffNamed                     string
 	PrevConflict                          string
 	NextConflict                          string
 	SelectPrevHunk                        string
@@ -509,11 +545,18 @@ type TranslationSet struct {
 	UndoingStatus                         string
 	RedoingStatus                         string
 	CheckingOutStatus                     string
+	CreatingBranchStatus                  string
 	CommittingStatus                      string
 	RewordingStatus                       string
 	RevertingStatus                       string
+	ResettingStatus                       string
 	CreatingFixupCommitStatus             string
 	MovingCommitsToNewBranchStatus        string
+	ApplyingFilterStatus                  string
+	RemovingFilterStatus                  string
+	StashingStatus                        string
+	ApplyingStashStatus                   string
+	PoppingStashStatus                    string
 	CommitFiles                           string
 	SubCommitsDynamicTitle                string
 	CommitFilesDynamicTitle               string
@@ -523,6 +566,7 @@ type TranslationSet struct {
 	CheckoutCommitFileTooltip             string
 	CannotCheckoutWithModifiedFilesErr    string
 	CanOnlyDiscardFromLocalCommits        string
+	CannotDiscardFromCustomPatchView      string
 	CannotDiscardFromMultipleCommits      string
 	Remove                                string
 	DiscardOldFileChangeTooltip           string
@@ -532,6 +576,7 @@ type TranslationSet struct {
 	DisabledForGPG                        string
 	CreateRepo                            string
 	BareRepo                              string
+	BareRepoNotSupported                  string
 	InitialBranch                         string
 	NoRecentRepositories                  string
 	IncorrectNotARepository               string
@@ -613,9 +658,9 @@ type TranslationSet struct {
 	PatchOptionsTitle                     string
 	NoPatchError                          string
 	EmptyPatchError                       string
-	EnterCommitFile                       string
-	EnterCommitFileTooltip                string
-	ExitCustomPatchBuilder                string
+	FocusCommitFileDiff                   string
+	FocusCommitFileDiffTooltip            string
+	ResetCustomPatch                      string
 	ExitFocusedMainView                   string
 	EnterUpstream                         string
 	InvalidUpstream                       string
@@ -662,14 +707,23 @@ type TranslationSet struct {
 	LightweightTag                        string
 	AnnotatedTag                          string
 	DeleteTagTitle                        string
+	DeleteTagsTitle                       string
 	DeleteLocalTag                        string
+	DeleteLocalTags                       string
 	DeleteRemoteTag                       string
+	DeleteRemoteTags                      string
 	DeleteLocalAndRemoteTag               string
+	DeleteLocalAndRemoteTags              string
 	SelectRemoteTagUpstream               string
+	SelectRemoteTagsUpstream              string
 	DeleteRemoteTagPrompt                 string
+	DeleteRemoteTagsPrompt                string
 	DeleteLocalAndRemoteTagPrompt         string
+	DeleteLocalAndRemoteTagsPrompt        string
 	RemoteTagDeletedMessage               string
+	RemoteTagsDeletedMessage              string
 	PushTagTitle                          string
+	PushTagsTitle                         string
 	PushTag                               string
 	PushTagTooltip                        string
 	NewTag                                string
@@ -690,9 +744,14 @@ type TranslationSet struct {
 	ViewResetToUpstreamOptions            string
 	NextScreenMode                        string
 	PrevScreenMode                        string
-	CyclePagers                           string
-	CyclePagersTooltip                    string
-	CyclePagersDisabledReason             string
+	CycleDiffRenderers                    string
+	CycleDiffRenderersTooltip             string
+	CycleDiffRenderersReverse             string
+	CycleDiffRenderersReverseTooltip      string
+	CycleDiffRenderersDisabledReason      string
+	SelectedDiffRenderers                 string
+	DefaultDiffRendererName               string
+	ExternalDiffDiffRendererName          string
 	StartSearch                           string
 	StartFilter                           string
 	SelectRemoteRepository                string
@@ -771,12 +830,15 @@ type TranslationSet struct {
 	CopyTagToClipboard                    string
 	CopyPathToClipboard                   string
 	CommitPrefixPatternError              string
-	CopySelectedTextToClipboard           string
+	CopySelectedDiffLinesToClipboard      string
+	SelectedDiffLinesCopiedToast          string
+	SelectionNotFoundInDiffToast          string
 	NoFilesStagedTitle                    string
 	NoFilesStagedPrompt                   string
 	BranchNotFoundTitle                   string
 	BranchNotFoundPrompt                  string
 	BranchUnknown                         string
+	HeadDetachedAt                        string
 	DiscardChangeTitle                    string
 	DiscardChangePrompt                   string
 	DiscardLinesFromCommitTitle           string
@@ -845,6 +907,7 @@ type TranslationSet struct {
 	ErrStageDirWithInlineMergeConflicts      string
 	ErrRepositoryMovedOrDeleted              string
 	ErrWorktreeMovedOrRemoved                string
+	CantSwitchWhileOperationInProgress       string
 	CommandLog                               string
 	ToggleShowCommandLog                     string
 	FocusCommandLog                          string
@@ -853,7 +916,6 @@ type TranslationSet struct {
 	ToggleWhitespaceInDiffView               string
 	ToggleWhitespaceInDiffViewTooltip        string
 	IgnoreWhitespaceDiffViewSubTitle         string
-	IgnoreWhitespaceNotSupportedHere         string
 	IncreaseContextInDiffView                string
 	IncreaseContextInDiffViewTooltip         string
 	DecreaseContextInDiffView                string
@@ -895,7 +957,7 @@ type TranslationSet struct {
 	SortOrderPrompt                          string
 	SortCommits                              string
 	SortCommitsTooltip                       string
-	CantChangeContextSizeError               string
+	CantChangeRenameThresholdError           string
 	OpenCommitInBrowser                      string
 	ViewBisectOptions                        string
 	ConfirmRevertCommit                      string
@@ -939,6 +1001,7 @@ type TranslationSet struct {
 	SearchPrefix                             string
 	FilterPrefix                             string
 	FilterPrefixMenu                         string
+	MenuFilterHint                           string
 	ExitSearchMode                           string
 	ExitTextFilterMode                       string
 	Switch                                   string
@@ -951,11 +1014,16 @@ type TranslationSet struct {
 	Switching                                string
 	RemoveWorktree                           string
 	RemoveWorktreeTitle                      string
+	RemoveWorktreeMenuTitle                  string
+	RemoveWorktreeAndDeleteBranch            string
+	RemoveWorktreeAndDeleteBothBranches      string
+	WorktreeNotCheckedOutOnBranch            string
 	DetachWorktree                           string
+	DetachWorktreeAndDeleteBranch            string
+	DetachWorktreeAndDeleteBothBranches      string
 	DetachingWorktree                        string
 	WorktreesTitle                           string
 	WorktreeTitle                            string
-	RemoveWorktreePrompt                     string
 	ForceRemoveWorktreePrompt                string
 	RemovingWorktree                         string
 	AddingWorktree                           string
@@ -967,15 +1035,25 @@ type TranslationSet struct {
 	MainWorktree                             string
 	NewWorktree                              string
 	NewWorktreePath                          string
-	NewWorktreeBase                          string
 	RemoveWorktreeTooltip                    string
 	NewBranchName                            string
-	NewBranchNameLeaveBlank                  string
-	ViewWorktreeOptions                      string
-	CreateWorktreeFrom                       string
-	CreateWorktreeFromDetached               string
+	NewWorktreeName                          string
+	NewWorktreeForBranchTitle                string
+	NewBranchAndWorktreeName                 string
+	NewBranchAndWorktreeFromRef              string
+	NewLocalBranchAndWorktreeFromRef         string
+	WorktreeForRef                           string
+	DetachedWorktreeAtRef                    string
+	WorktreeLocationTitle                    string
+	WorktreeLocationOther                    string
+	WorktreeLocationPromptNewBranch          string
+	WorktreeLocationPromptTrackingBranch     string
+	WorktreeLocationPromptCheckout           string
+	WorktreeLocationPromptDetached           string
 	LcWorktree                               string
 	ChangingDirectoryTo                      string
+	DirenvApprovalTitle                      string
+	DirenvApprovalPrompt                     string
 	Name                                     string
 	Branch                                   string
 	Path                                     string
@@ -1000,6 +1078,7 @@ type TranslationSet struct {
 	SelectedItemIsNotABranch                 string
 	SelectedItemDoesNotHaveFiles             string
 	MultiSelectNotSupportedForSubmodules     string
+	NothingToStageForSubmodule               string
 	CommandDoesNotSupportOpeningInEditor     string
 	CustomCommands                           string
 	NoApplicableCommandsInThisContext        string
@@ -1105,6 +1184,8 @@ type Actions struct {
 	StageAllFiles                    string
 	ResolveConflictByKeepingFile     string
 	ResolveConflictByDeletingFile    string
+	TakeCurrentSubmoduleCommit       string
+	TakeIncomingSubmoduleCommit      string
 	NotEnoughContextToStage          string
 	NotEnoughContextToDiscard        string
 	NotEnoughContextToRemoveLines    string
@@ -1186,12 +1267,7 @@ Thanks for using lazygit! Seriously you rock. Three things to share with you:
  2) Be sure to read the latest release notes at:
       https://github.com/jesseduffield/lazygit/releases
 
- 3) If you're using git, that makes you a programmer! With your help we can make
-    lazygit better, so consider becoming a contributor and joining the fun at
-      https://github.com/jesseduffield/lazygit
-    Or even just star the repo to share the love!
-
- 4) If lazygit has made your life easier, you can say thanks by clicking the
+ 3) If lazygit has made your life easier, you can say thanks by clicking the
     donate button at the bottom right. Donation does not grant priority support,
     but it is much appreciated.
 
@@ -1201,15 +1277,6 @@ Press {{confirmationKey}} to get started.
 const englishNonReloadableConfigWarning = `The following config settings were changed, but the change doesn't take effect immediately. Please quit and restart lazygit for changes to take effect:
 
 {{configs}}`
-
-const englishHunkStagingHint = `Hunk selection mode is now the default for staging. If you want to stage individual lines, press '%s' to switch to line-by-line mode.
-
-If you prefer to use line-by-line mode by default (like in earlier lazygit versions), add
-
-gui:
-  useHunkModeInStagingView: false
-
-to your lazygit config.`
 
 // exporting this so we can use it in tests
 func EnglishTranslationSet() *TranslationSet {
@@ -1224,7 +1291,6 @@ func EnglishTranslationSet() *TranslationSet {
 		EasterEgg:                            "Easter egg",
 		UnstagedChanges:                      "Unstaged changes",
 		StagedChanges:                        "Staged changes",
-		StagingTitle:                         "Main panel (staging)",
 		MergingTitle:                         "Main panel (merging)",
 		NormalTitle:                          "Main panel (normal)",
 		LogTitle:                             "Log",
@@ -1264,9 +1330,9 @@ func EnglishTranslationSet() *TranslationSet {
 		Refresh:                              "Refresh",
 		RefreshTooltip:                       "Refresh the git state (i.e. run `git status`, `git branch`, etc in background to update the contents of panels). This does not run `git fetch`.",
 		Push:                                 "Push",
-		PushTooltip:                          "Push the current branch to its upstream branch. If no upstream is configured, you will be prompted to configure an upstream branch.",
+		PushTooltip:                          "Push the current branch to its upstream branch. If no upstream is configured, you will be prompted to configure an upstream branch. If other branches are stacked below the current one and have commits to push, you are offered to push those too.",
 		Pull:                                 "Pull",
-		PullTooltip:                          "Pull changes from the remote for the current branch. If no upstream is configured, you will be prompted to configure an upstream branch.",
+		PullTooltip:                          "Pull changes from the remote for the current branch. If no upstream is configured, you will be prompted to configure an upstream branch. If other branches are stacked below the current one and have changed on the remote, you are offered to update those too.",
 		MergeConflictsTitle:                  "Merge conflicts",
 		MergeConflictDescription_DD:          "Conflict: this file was moved or renamed both in the current and the incoming changes, but to different destinations. I don't know which ones, but they should both show up as conflicts too (marked 'AU' and 'UA', respectively). The most likely resolution is to delete this file, and pick one of the destinations and delete the other.",
 		MergeConflictDescription_AU:          "Conflict: this file is the destination of a move or rename in the current changes, but was moved or renamed to a different destination in the incoming changes. That other destination should also show up as a conflict (marked 'UA'), as well as the file that both were renamed from (marked 'DD').",
@@ -1278,6 +1344,10 @@ func EnglishTranslationSet() *TranslationSet {
 		MergeConflictPressEnterToResolve:     "Press %s to resolve.",
 		MergeConflictKeepFile:                "Keep file",
 		MergeConflictDeleteFile:              "Delete file",
+		MergeConflictTakeCurrentCommit:       "Take current commit",
+		MergeConflictTakeIncomingCommit:      "Take incoming commit",
+		SubmoduleMergeConflictDescription:    "Conflict: the submodule '{{.path}}' was set to a different commit in the current and the incoming changes. Pick which commit to keep.",
+		StageConflictsRangeDisabled:          "Cannot stage a selection that includes files with merge conflicts; resolve them individually with {{.goIntoKey}} first.",
 		Checkout:                             "Checkout",
 		CheckoutTooltip:                      "Checkout selected item.",
 		CantCheckoutBranchWhilePulling:       "You cannot checkout another branch while pulling the current branch",
@@ -1406,7 +1476,7 @@ func EnglishTranslationSet() *TranslationSet {
 		RewordCommitEditor:                   "Reword with editor",
 		Error:                                "Error",
 		PickHunk:                             "Pick hunk",
-		PickAllHunks:                         "Pick all hunks",
+		PickBothHunks:                        "Pick both hunks",
 		Undo:                                 "Undo",
 		UndoReflog:                           "Undo",
 		RedoReflog:                           "Redo",
@@ -1434,11 +1504,18 @@ func EnglishTranslationSet() *TranslationSet {
 		StashChanges:                         "Stash changes",
 		RenameStash:                          "Rename stash",
 		RenameStashPrompt:                    "Rename stash: {{.stashName}}",
-		OpenConfig:                           "Open config file",
 		EditConfig:                           "Edit config file",
 		ForcePush:                            "Force push",
 		ForcePushPrompt:                      "Your branch has diverged from the remote branch. Press {{.cancelKey}} to cancel, or {{.confirmKey}} to force push.",
 		ForcePushDisabled:                    "Your branch has diverged from the remote branch and you've disabled force pushing",
+		ForcePushBranchesPrompt:              "The following branches have diverged from their remote branches:\n\n{{.branches}}\n\nPress {{.cancelKey}} to cancel, or {{.confirmKey}} to force push.",
+		ForcePushBranchesDisabled:            "Some of these branches have diverged from their remote branches and you've disabled force pushing",
+		BranchesBelowHaveCommitsToPush:       "The following branches stacked below '{{.branchName}}' also have commits to push:",
+		PushBranchAndBranchesBelow:           "Push all these branches in addition to the current one",
+		PushOnlyCurrentBranch:                "Push only '{{.branchName}}'",
+		BranchesBelowHaveChangedOnRemote:     "The following branches stacked below '{{.branchName}}' have also changed on the remote:",
+		PullBranchAndBranchesBelow:           "Pull all these branches in addition to the current one",
+		PullOnlyCurrentBranch:                "Pull only '{{.branchName}}'",
 		UpdatesRejected:                      "Updates were rejected. Please fetch and examine the remote changes before pushing again.",
 		UpdatesRejectedAndForcePushDisabled:  "Updates were rejected and you have disabled force pushing",
 		CheckForUpdate:                       "Check for update",
@@ -1487,6 +1564,8 @@ func EnglishTranslationSet() *TranslationSet {
 		CreatePullRequest:                    `Create pull request`,
 		CopyPullRequestURL:                   `Copy pull request URL to clipboard`,
 		OpenPullRequestInBrowser:             `Open pull request in browser`,
+		OpenPullRequestAtSelectedLine:        `Open pull request at selected line`,
+		OpenPullRequestAtSelectedLineTooltip: "Open the branch's pull request in your browser, at the line the selection is on, so that you can comment on it there. Only pull requests on GitHub are found.",
 		NoPullRequestForBranch:               `No pull request found for this branch`,
 		NoBranchOnRemote:                     `This branch doesn't exist on remote. You need to push it to remote first.`,
 		Fetch:                                `Fetch`,
@@ -1496,28 +1575,33 @@ func EnglishTranslationSet() *TranslationSet {
 		ExpandAll:                            "Expand all files",
 		ExpandAllTooltip:                     "Expand all directories in the file tree",
 		DisabledInFlatView:                   "Not available in flat view",
-		FileEnter:                            `Stage lines / Collapse directory`,
-		FileEnterTooltip:                     "If the selected item is a file, focus the staging view so you can stage individual hunks/lines. If the selected item is a directory, collapse/expand it.",
+		FileEnter:                            `Focus file diff / Collapse directory`,
+		FileEnterTooltip:                     "If the selected item is a file, focus its diff so you can act on individual hunks or lines. If it is a directory, collapse or expand it.",
 		StageSelectionTooltip:                `Toggle selection staged / unstaged.`,
 		DiscardSelection:                     `Discard`,
 		DiscardSelectionTooltip:              "When unstaged change is selected, discard the change using `git reset`. When staged change is selected, unstage the change.",
 		ToggleRangeSelect:                    "Toggle range select",
 		DismissRangeSelect:                   "Dismiss range select",
 		ToggleSelectHunk:                     "Toggle hunk selection",
+		NothingToSelectInDiff:                "There is nothing to select here",
+		NotAvailableInDiffingMode:            "Not available in diffing mode",
+		NotAvailableForCustomPatch:           "Not available for the custom patch",
+		CommitNotInPullRequest:               "This commit is not part of the pull request",
+		CommitsNotInPullRequest:              "Not all of these commits are part of the pull request",
+		CommitsInSeveralPullRequests:         "These commits are not all in the same pull request",
 		SelectHunk:                           "Select hunks",
 		SelectLineByLine:                     "Select line-by-line",
 		ToggleSelectHunkTooltip:              "Toggle line-by-line vs. hunk selection mode.",
-		HunkStagingHint:                      englishHunkStagingHint,
 		ToggleSelectionForPatch:              `Toggle lines in patch`,
 		RemoveSelectionFromPatch:             `Remove lines from commit`,
 		RemoveSelectionFromPatchTooltip:      "Remove the selected lines from this commit. This runs an interactive rebase in the background, so you may get a merge conflict if a later commit also changes these lines.",
 		EditHunk:                             `Edit hunk`,
 		EditHunkTooltip:                      "Edit selected hunk in external editor.",
-		ToggleStagingView:                    "Switch view",
-		ToggleStagingViewTooltip:             "Switch to other view (staged/unstaged changes).",
+		ToggleDiffPane:                       "Switch diff pane",
+		ToggleDiffPaneTooltip:                "Switch to the other focused diff pane.",
 		ReturnToFilesPanel:                   `Return to files panel`,
 		FastForward:                          `Fast-forward`,
-		FastForwardTooltip:                   "Fast-forward selected branch from its upstream.",
+		FastForwardTooltip:                   "Fast-forward selected branch from its upstream. If the branch has diverged from its upstream because the upstream branch was rewritten, and it has no commits of its own, it is reset to its upstream instead. This needs reflogs to be enabled; a bare repository doesn't keep them by default (core.logAllRefUpdates).",
 		FastForwarding:                       "Fast-forwarding",
 		FoundConflictsTitle:                  "Conflicts!",
 		ViewConflictsMenuItem:                "View conflicts",
@@ -1533,6 +1617,9 @@ func EnglishTranslationSet() *TranslationSet {
 		NotMidRebase:                         "This action only works during an interactive rebase",
 		MustSelectFixupCommit:                "This action only works on fixup commits",
 		RecentRepos:                          "Recent repositories",
+		RecentReposRepoLabel:                 "Repo:",
+		RecentReposBranchLabel:               "Branch:",
+		RecentReposPathLabel:                 "Path:",
 		MergeOptionsTitle:                    "Merge options",
 		RebaseOptionsTitle:                   "Rebase options",
 		CherryPickOptionsTitle:               "Cherry-pick options",
@@ -1634,7 +1721,6 @@ func EnglishTranslationSet() *TranslationSet {
 		PrActivityTitle:                      "PR Activity",
 		PrFilesChangedTitle:                  "Files Changed",
 		RemoteBranchesTitle:                  "Remote branches",
-		PatchBuildingTitle:                   "Main panel (patch building)",
 		InformationTitle:                     "Information",
 		SecondaryTitle:                       "Secondary",
 		ReflogCommitsTitle:                   "Reflog",
@@ -1658,13 +1744,23 @@ func EnglishTranslationSet() *TranslationSet {
 		FwdNoUpstream:                        "Cannot fast-forward a branch with no upstream",
 		FwdNoLocalUpstream:                   "Cannot fast-forward a branch whose remote is not registered locally",
 		FwdCommitsToPush:                     "Cannot fast-forward a branch with commits to push",
+		FwdLocalOnlyCommits:                  "Cannot fast-forward '{{.branchName}}' because it has commits which were never on its remote branch",
+		FwdUncommittedChanges:                "Cannot fast-forward '{{.branchName}}' because the worktree it is checked out in has uncommitted changes",
+		FwdBranchRebasingOrBisecting:         "Cannot fast-forward '{{.branchName}}' because it is being rebased or bisected in worktree {{.worktreeName}}",
 		PullRequestNoUpstream:                "Cannot open a pull request for a branch with no upstream",
+		PullRequestChecksPassing:             "Passing",
+		PullRequestChecksPending:             "Pending",
+		PullRequestChecksFailing:             "Failing",
+		PullRequestChecksError:               "Error",
+		PullRequestChecksExpected:            "Expected",
 		ErrorOccurred:                        "An error occurred! Please create an issue at",
 		ConflictLabel:                        "CONFLICT",
 		PendingRebaseTodosSectionHeader:      "Pending rebase todos",
 		PendingCherryPicksSectionHeader:      "Pending cherry-picks",
 		PendingRevertsSectionHeader:          "Pending reverts",
 		CommitsSectionHeader:                 "Commits",
+		MoveCommitsHere:                      "drop here",
+		MovingCommitsHere:                    "moving commits here",
 		YouDied:                              "YOU DIED!",
 		RewordNotSupported:                   "Rewording commits while interactively rebasing is not currently supported",
 		ChangingThisActionIsNotAllowed:       "Changing this kind of rebase todo entry is not allowed",
@@ -1681,6 +1777,13 @@ func EnglishTranslationSet() *TranslationSet {
 		AskQuestion:                          "Ask Question",
 		PrevHunk:                             "Go to previous hunk",
 		NextHunk:                             "Go to next hunk",
+		PrevFileInDiff:                       "Go to previous file",
+		NextFileInDiff:                       "Go to next file",
+		JumpToFile:                           "Jump to file",
+		JumpToFileInDiff:                     "Jump to file in diff",
+		JumpToFileInDiffTooltip:              "Pick one of the files of the diff shown in the main view, and scroll the main view to it. The focus stays in this panel.",
+		OnlyOneFileInDiff:                    "There is only one file in this diff",
+		NoFileInDiffNamed:                    "This diff has no file named '{{.path}}'",
 		PrevConflict:                         "Previous conflict",
 		NextConflict:                         "Next conflict",
 		SelectPrevHunk:                       "Previous hunk",
@@ -1719,11 +1822,18 @@ func EnglishTranslationSet() *TranslationSet {
 		UndoingStatus:                        "Undoing",
 		RedoingStatus:                        "Redoing",
 		CheckingOutStatus:                    "Checking out",
+		CreatingBranchStatus:                 "Creating branch",
 		CommittingStatus:                     "Committing",
 		RewordingStatus:                      "Rewording",
 		RevertingStatus:                      "Reverting",
+		ResettingStatus:                      "Resetting",
 		CreatingFixupCommitStatus:            "Creating fixup commit",
 		MovingCommitsToNewBranchStatus:       "Moving commits to new branch",
+		ApplyingFilterStatus:                 "Applying filter",
+		RemovingFilterStatus:                 "Removing filter",
+		StashingStatus:                       "Stashing",
+		ApplyingStashStatus:                  "Applying stash",
+		PoppingStashStatus:                   "Popping stash",
 		CommitFiles:                          "Commit files",
 		SubCommitsDynamicTitle:               "Commits (%s)",
 		CommitFilesDynamicTitle:              "Diff files (%s)",
@@ -1733,6 +1843,7 @@ func EnglishTranslationSet() *TranslationSet {
 		CheckoutCommitFileTooltip:            "Checkout file. This replaces the file in your working tree with the version from the selected commit.",
 		CannotCheckoutWithModifiedFilesErr:   "You have local modifications for the file(s) you are trying to check out. You need to stash or discard these first.",
 		CanOnlyDiscardFromLocalCommits:       "Changes can only be discarded from local commits",
+		CannotDiscardFromCustomPatchView:     "Lines shown here are the custom patch's; press space to take them back out of it",
 		CannotDiscardFromMultipleCommits:     "Changes cannot be discarded from a multiselection of commits",
 		Remove:                               "Remove",
 		DiscardOldFileChangeTooltip:          "Discard this commit's changes to this file. This runs an interactive rebase in the background, so you may get a merge conflict if a later commit also changes this file.",
@@ -1741,7 +1852,8 @@ func EnglishTranslationSet() *TranslationSet {
 		DiscardFileChangesPromptResetPatch:   "Are you sure you want to discard changes to the selected file(s) from this commit?\n\nThis action will start a rebase, reverting these file changes. Be aware that if subsequent commits depend on these changes, you may need to resolve conflicts.\n\nNote: This will reset the active custom patch!",
 		DisabledForGPG:                       "Feature not available for users using GPG.\n\nIf you are using a passphrase agent (e.g. gpg-agent) so that you don't have to type your passphrase when signing, you can enable this feature by adding\n\ngit:\n  overrideGpg: true\n\nto your lazygit config file.",
 		CreateRepo:                           "Not in a git repository. Create a new git repository? (y/N): ",
-		BareRepo:                             "You've attempted to open Lazygit in a bare repo but Lazygit does not yet support bare repos. Open most recent repo? (y/n) ",
+		BareRepo:                             "You've attempted to open Lazygit in a bare repo but Lazygit does not support bare repos. Open most recent repo? (y/n) ",
+		BareRepoNotSupported:                 "Lazygit does not support bare repos.",
 		InitialBranch:                        "Branch name? (leave empty for git's default): ",
 		NoRecentRepositories:                 "Must open lazygit in a git repository. No valid recent repositories. Exiting.",
 		IncorrectNotARepository:              "The value of 'notARepository' is incorrect. It should be one of 'prompt', 'create', 'skip', or 'quit'.",
@@ -1824,9 +1936,9 @@ func EnglishTranslationSet() *TranslationSet {
 		PatchOptionsTitle:                    "Patch options",
 		NoPatchError:                         "No patch created yet. To start building a patch, use 'space' on a commit file or enter to add specific lines",
 		EmptyPatchError:                      "Patch is still empty. Add some files or lines to your patch first.",
-		EnterCommitFile:                      "Enter file / Toggle directory collapsed",
-		EnterCommitFileTooltip:               "If a file is selected, enter the file so that you can add/remove individual lines to the custom patch. If a directory is selected, toggle the directory.",
-		ExitCustomPatchBuilder:               `Exit custom patch builder`,
+		FocusCommitFileDiff:                  "Focus file diff / Toggle directory",
+		FocusCommitFileDiffTooltip:           "If a file is selected, focus its diff so you can act on individual lines. If it is a directory, collapse or expand it.",
+		ResetCustomPatch:                     `Reset custom patch`,
 		ExitFocusedMainView:                  "Exit back to side panel",
 		EnterUpstream:                        `Enter upstream as '<remote> <branchname>'`,
 		InvalidUpstream:                      "Invalid upstream. Must be in the format '<remote> <branchname>'",
@@ -1873,14 +1985,23 @@ func EnglishTranslationSet() *TranslationSet {
 		AnnotatedTag:                         "Annotated tag",
 		LightweightTag:                       "Lightweight tag",
 		DeleteTagTitle:                       "Delete tag '{{.tagName}}'?",
+		DeleteTagsTitle:                      "Delete selected tags?",
 		DeleteLocalTag:                       "Delete local tag",
+		DeleteLocalTags:                      "Delete local tags",
 		DeleteRemoteTag:                      "Delete remote tag",
+		DeleteRemoteTags:                     "Delete remote tags",
 		DeleteLocalAndRemoteTag:              "Delete local and remote tag",
+		DeleteLocalAndRemoteTags:             "Delete local and remote tags",
 		RemoteTagDeletedMessage:              "Remote tag deleted",
+		RemoteTagsDeletedMessage:             "Remote tags deleted",
 		SelectRemoteTagUpstream:              "Remote from which to remove tag '{{.tagName}}':",
+		SelectRemoteTagsUpstream:             "Remote from which to remove the selected tags:",
 		DeleteRemoteTagPrompt:                "Are you sure you want to delete the remote tag '{{.tagName}}' from '{{.upstream}}'?",
+		DeleteRemoteTagsPrompt:               "Are you sure you want to delete the selected tags from '{{.upstream}}'?",
 		DeleteLocalAndRemoteTagPrompt:        "Are you sure you want to delete '{{.tagName}}' from both your machine and from '{{.upstream}}'?",
+		DeleteLocalAndRemoteTagsPrompt:       "Are you sure you want to delete the selected tags from both your machine and from '{{.upstream}}'?",
 		PushTagTitle:                         "Remote to push tag '{{.tagName}}' to:",
+		PushTagsTitle:                        "Remote to push the selected tags to:",
 		// Using 'push tag' rather than just 'push' to disambiguate from a global push
 		PushTag:                        "Push tag",
 		PushTagTooltip:                 "Push the selected tag to a remote. You'll be prompted to select a remote.",
@@ -1903,9 +2024,14 @@ func EnglishTranslationSet() *TranslationSet {
 		ViewResetToUpstreamOptions:       "View upstream reset options",
 		NextScreenMode:                   "Next screen mode (normal/half/fullscreen)",
 		PrevScreenMode:                   "Prev screen mode",
-		CyclePagers:                      "Cycle pagers",
-		CyclePagersTooltip:               "Choose the next pager in the list of configured pagers",
-		CyclePagersDisabledReason:        "No other pagers configured",
+		CycleDiffRenderers:               "Cycle diff renderers",
+		CycleDiffRenderersTooltip:        "Choose the next renderer in the list of configured diff renderers.",
+		CycleDiffRenderersReverse:        "Cycle diff renderers (reverse)",
+		CycleDiffRenderersReverseTooltip: "Choose the previous renderer in the list of configured diff renderers.",
+		CycleDiffRenderersDisabledReason: "No other diff renderers configured",
+		SelectedDiffRenderers:            "Diff renderer: {{.name}} ({{.current}} of {{.total}})",
+		DefaultDiffRendererName:          "(default)",
+		ExternalDiffDiffRendererName:     "(external diff)",
 		StartSearch:                      "Search the current view by text",
 		StartFilter:                      "Filter the current view by text",
 		SelectRemoteRepository:           "Select base repository for pull requests",
@@ -1979,13 +2105,16 @@ func EnglishTranslationSet() *TranslationSet {
 		CopyBranchNameToClipboard:                "Copy branch name to clipboard",
 		CopyTagToClipboard:                       "Copy tag to clipboard",
 		CopyPathToClipboard:                      "Copy path to clipboard",
-		CopySelectedTextToClipboard:              "Copy selected text to clipboard",
+		CopySelectedDiffLinesToClipboard:         "Copy selected diff lines to clipboard",
+		SelectedDiffLinesCopiedToast:             "Selected diff lines copied to clipboard",
+		SelectionNotFoundInDiffToast:             "Nothing in the selection could be found in the diff",
 		CommitPrefixPatternError:                 "Error in commitPrefix pattern",
 		NoFilesStagedTitle:                       "No files staged",
 		NoFilesStagedPrompt:                      "You have not staged any files. Commit all files?",
 		BranchNotFoundTitle:                      "Branch not found",
 		BranchNotFoundPrompt:                     "Branch not found. Create a new branch named",
 		BranchUnknown:                            "Branch unknown",
+		HeadDetachedAt:                           "HEAD detached at {{.hash}}",
 		DiscardChangeTitle:                       "Discard change",
 		DiscardChangePrompt:                      "Are you sure you want to discard this change (git reset)? It is irreversible.\nTo disable this dialogue set the config key of 'gui.skipDiscardChangeWarning' to true",
 		DiscardLinesFromCommitTitle:              "Discard lines from commit",
@@ -2054,6 +2183,7 @@ func EnglishTranslationSet() *TranslationSet {
 		ErrRepositoryMovedOrDeleted:              "Cannot find repo. It might have been moved or deleted ¯\\_(ツ)_/¯",
 		CommandLog:                               "Command log",
 		ErrWorktreeMovedOrRemoved:                "Cannot find worktree. It might have been moved or removed ¯\\_(ツ)_/¯",
+		CantSwitchWhileOperationInProgress:       "Can't switch repositories while an operation is in progress",
 		ToggleShowCommandLog:                     "Toggle show/hide command log",
 		FocusCommandLog:                          "Focus command log",
 		CommandLogHeader:                         "You can hide/focus this panel by pressing '%s'\n",
@@ -2061,7 +2191,6 @@ func EnglishTranslationSet() *TranslationSet {
 		ToggleWhitespaceInDiffView:               "Toggle whitespace",
 		ToggleWhitespaceInDiffViewTooltip:        "Toggle whether or not whitespace changes are shown in the diff view.\n\nThe default can be changed in the config file with the key 'git.ignoreWhitespaceInDiffView'.",
 		IgnoreWhitespaceDiffViewSubTitle:         "(ignoring whitespace)",
-		IgnoreWhitespaceNotSupportedHere:         "Ignoring whitespace is not supported in this view",
 		IncreaseContextInDiffView:                "Increase diff context size",
 		IncreaseContextInDiffViewTooltip:         "Increase the amount of the context shown around changes in the diff view.\n\nThe default can be changed in the config file with the key 'git.diffContextSize'.",
 		DecreaseContextInDiffView:                "Decrease diff context size",
@@ -2101,7 +2230,7 @@ func EnglishTranslationSet() *TranslationSet {
 		SortBasedOnReflog:                        "(based on reflog)",
 		SortCommits:                              "Commit sort order",
 		SortCommitsTooltip:                       "Change the sort order of the commits in the commit log.\n\nThe default can be changed in the config file with the key 'git.log.sortOrder'.",
-		CantChangeContextSizeError:               "Cannot change context while in patch building mode because we were too lazy to support it when releasing the feature. If you really want it, please let us know!",
+		CantChangeRenameThresholdError:           "Cannot change the rename similarity threshold while in patch building mode, because the custom patch can't cope with a rename turning into a delete and add underneath it.",
 		OpenCommitInBrowser:                      "Open commit in browser",
 		ViewBisectOptions:                        "View bisect options",
 		ConfirmRevertCommit:                      "Are you sure you want to revert {{.selectedCommit}}?",
@@ -2146,7 +2275,8 @@ func EnglishTranslationSet() *TranslationSet {
 		SearchKeybindings:                        "%s: Next match, %s: Previous match, %s: Exit search mode",
 		SearchPrefix:                             "Search: ",
 		FilterPrefix:                             "Filter: ",
-		FilterPrefixMenu:                         "Filter (prepend '@' to filter keybindings): ",
+		FilterPrefixMenu:                         "Filter ('@' for keybindings): ",
+		MenuFilterHint:                           "(Type to filter)",
 		WorktreesTitle:                           "Worktrees",
 		WorktreeTitle:                            "Worktree",
 		Switch:                                   "Switch",
@@ -2159,10 +2289,15 @@ func EnglishTranslationSet() *TranslationSet {
 		Switching:                                "Switching",
 		RemoveWorktree:                           "Remove worktree",
 		RemoveWorktreeTitle:                      "Remove worktree",
-		RemoveWorktreePrompt:                     "Are you sure you want to remove worktree '{{.worktreeName}}'?",
+		RemoveWorktreeMenuTitle:                  "Remove worktree '{{.worktreeName}}'?",
+		RemoveWorktreeAndDeleteBranch:            "Remove worktree and delete branch",
+		RemoveWorktreeAndDeleteBothBranches:      "Remove worktree and delete local and remote branch",
+		WorktreeNotCheckedOutOnBranch:            "This worktree is not checked out on a branch",
 		ForceRemoveWorktreePrompt:                "'{{.worktreeName}}' contains modified or untracked files, or submodules (or all of these). Are you sure you want to remove it?",
 		RemovingWorktree:                         "Deleting worktree",
 		DetachWorktree:                           "Detach worktree",
+		DetachWorktreeAndDeleteBranch:            "Detach worktree and delete branch",
+		DetachWorktreeAndDeleteBothBranches:      "Detach worktree and delete local and remote branch",
 		DetachingWorktree:                        "Detaching worktree",
 		AddingWorktree:                           "Adding worktree",
 		CantDeleteCurrentWorktree:                "You cannot remove the current worktree!",
@@ -2173,15 +2308,25 @@ func EnglishTranslationSet() *TranslationSet {
 		MainWorktree:                             "(main worktree)",
 		NewWorktree:                              "New worktree",
 		NewWorktreePath:                          "New worktree path",
-		NewWorktreeBase:                          "New worktree base ref",
 		RemoveWorktreeTooltip:                    "Remove the selected worktree. This will both delete the worktree's directory, as well as metadata about the worktree in the .git directory.",
 		NewBranchName:                            "New branch name",
-		NewBranchNameLeaveBlank:                  "New branch name (leave blank to checkout {{.default}})",
-		ViewWorktreeOptions:                      "View worktree options",
-		CreateWorktreeFrom:                       "Create worktree from {{.ref}}",
-		CreateWorktreeFromDetached:               "Create worktree from {{.ref}} (detached)",
+		NewWorktreeName:                          "New worktree name",
+		NewWorktreeForBranchTitle:                "New worktree for branch",
+		NewBranchAndWorktreeName:                 "New branch and worktree name",
+		NewBranchAndWorktreeFromRef:              "New branch and worktree from '{{.ref}}'",
+		NewLocalBranchAndWorktreeFromRef:         "New local branch and worktree from '{{.ref}}'",
+		WorktreeForRef:                           "New worktree for '{{.ref}}'",
+		DetachedWorktreeAtRef:                    "New detached worktree at '{{.ref}}'",
+		WorktreeLocationTitle:                    "Worktree location",
+		WorktreeLocationOther:                    "Other…",
+		WorktreeLocationPromptNewBranch:          "New branch '{{.name}}' from '{{.base}}':",
+		WorktreeLocationPromptTrackingBranch:     "New branch '{{.name}}' tracking '{{.ref}}':",
+		WorktreeLocationPromptCheckout:           "Worktree for branch '{{.branchName}}':",
+		WorktreeLocationPromptDetached:           "Detached worktree at '{{.ref}}':",
 		LcWorktree:                               "worktree",
 		ChangingDirectoryTo:                      "Changing directory to {{.path}}",
+		DirenvApprovalTitle:                      "Approve .envrc?",
+		DirenvApprovalPrompt:                     "Press {{.confirmKey}} to run 'direnv allow' and load the environment.\nPress {{.cancelKey}} to skip.\n\n{{.content}}",
 		Name:                                     "Name",
 		Branch:                                   "Branch",
 		Path:                                     "Path",
@@ -2204,6 +2349,7 @@ func EnglishTranslationSet() *TranslationSet {
 		SelectedItemIsNotABranch:                 "Selected item is not a branch",
 		SelectedItemDoesNotHaveFiles:             "Selected item does not have files to view",
 		MultiSelectNotSupportedForSubmodules:     "Multiselection not supported for submodules",
+		NothingToStageForSubmodule:               "Nothing to stage: the parent repo can only stage a new submodule commit, not the uncommitted changes inside a submodule. Commit inside the submodule first.",
 		CommandDoesNotSupportOpeningInEditor:     "This command doesn't support switching to the editor",
 		CustomCommands:                           "Custom commands",
 		NoApplicableCommandsInThisContext:        "(No applicable commands in this context)",
@@ -2270,6 +2416,8 @@ func EnglishTranslationSet() *TranslationSet {
 			StageAllFiles:                    "Stage all files",
 			ResolveConflictByKeepingFile:     "Resolve by keeping file",
 			ResolveConflictByDeletingFile:    "Resolve by deleting file",
+			TakeCurrentSubmoduleCommit:       "Resolve submodule conflict by taking current commit",
+			TakeIncomingSubmoduleCommit:      "Resolve submodule conflict by taking incoming commit",
 			NotEnoughContextToStage:          "Staging or unstaging changes is not possible with a diff context size of 0. Increase the context using '%s'.",
 			NotEnoughContextToDiscard:        "Discarding changes is not possible with a diff context size of 0. Increase the context using '%s'.",
 			NotEnoughContextToRemoveLines:    "Removing lines from a commit is not possible with a diff context size of 0. Increase the context using '%s'.",
@@ -2430,7 +2578,7 @@ keybinding:
     suspendApp: <disabled>
     redo: <ctrl+z>
 
-- The 'git.paging.useConfig' option has been removed. If you were relying on it to configure your pager, you'll have to explicitly set the pager again using the 'git.paging.pager' option.
+- The 'git.paging.useConfig' option has been removed. If you were relying on it to configure your pager, you'll have to explicitly set the command again using the 'git.diffRenderers.*.command' option.
 `,
 			"0.62.0": `- The default keybinding for submitting a commit from the commit description editor has changed from alt-enter to command-enter on Mac, or ctrl-enter on Linux and Windows; these are the same bindings that are used in many multi-line edit field situations, e.g. in GitHub comments. Unfortunately these are not supported by all terminals; see https://github.com/jesseduffield/lazygit/blob/master/docs/keybindings/Custom_Keybindings.md#terminal-compatibility for more on that. If you want to revert this change, you can do so by adding the following to your config:
 

@@ -3,12 +3,17 @@ package context
 import (
 	"fmt"
 	"log"
+	"slices"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/jesseduffield/lazygit/pkg/commands/models"
+	"github.com/jesseduffield/lazygit/pkg/config"
 	"github.com/jesseduffield/lazygit/pkg/gocui"
 	"github.com/jesseduffield/lazygit/pkg/gui/presentation"
+	"github.com/jesseduffield/lazygit/pkg/gui/presentation/graph"
+	"github.com/jesseduffield/lazygit/pkg/gui/style"
 	"github.com/jesseduffield/lazygit/pkg/gui/types"
 	"github.com/samber/lo"
 )
@@ -17,15 +22,141 @@ type LocalCommitsContext struct {
 	*LocalCommitsViewModel
 	*ListContextTrait
 	*SearchTrait
+
+	dropIndicator *commitDropIndicator
+}
+
+type commitDropIndicator struct {
+	insertionIndex int
+	moving         bool
 }
 
 var (
-	_ types.IListContext       = (*LocalCommitsContext)(nil)
-	_ types.DiffableContext    = (*LocalCommitsContext)(nil)
-	_ types.ISearchableContext = (*LocalCommitsContext)(nil)
+	_ types.IListContext           = (*LocalCommitsContext)(nil)
+	_ types.DiffableContext        = (*LocalCommitsContext)(nil)
+	_ types.ISearchableContext     = (*LocalCommitsContext)(nil)
+	_ types.DiffMainViewContext    = (*LocalCommitsContext)(nil)
+	_ types.PullRequestDiffContext = (*LocalCommitsContext)(nil)
 )
 
+func (self *LocalCommitsContext) GetDiffMainViewType() types.DiffMainViewType {
+	return types.DiffMainViewTypePatchBuilding
+}
+
+// This panel shows the commits of the checked-out branch, and of the branches below it
+// in a stack. PullRequestDiff looks for their pull request among those branches.
+func (self *LocalCommitsContext) PullRequestDiff() types.PullRequestDiff {
+	_, selectionStart, selectionEnd := self.GetSelectedItems()
+	startIdx, endIdx := commitRangeShownInDiff(
+		selectionStart, selectionEnd, self.GetSelectedLineIdx(), self.GetSelectedRefRangeForDiffFiles())
+	model := self.ListContextTrait.c.Model()
+	return pullRequestDiff(
+		self.GetCommits(), startIdx, endIdx, model.CheckedOutBranch, model.Branches, model.PullRequestsMap)
+}
+
+// commitRangeShownInDiff returns the indices of the newest and the oldest of the commits
+// whose combined diff a panel listing a branch's commits renders into the main view: the
+// selected range where it has a range to diff, and the commit at the cursor otherwise.
+// The panel hands the same selection to DiffHelper.GetUpdateTaskForRenderingCommitsDiff,
+// so anything acting on the diff on screen acts on the commits that diff is of.
+func commitRangeShownInDiff(
+	selectionStart int, selectionEnd int, cursor int, refRange *types.RefRange,
+) (int, int) {
+	if refRange != nil {
+		return selectionStart, selectionEnd
+	}
+	return cursor, cursor
+}
+
+// pullRequestDiff works out which branch's pull request would show the diff of the
+// commits from startIdx to endIdx of a panel listing the commits of listedBranch, and
+// which commit that diff starts after.
+//
+// That commit is the parent of the oldest of the commits. A pull request holds only the
+// commits of its branch that are pushed, so a parent that isn't pushed is none of its
+// own. A parent on the branch below in a stack isn't either, because the pull request
+// was opened against that branch. The diff then starts where the pull request itself
+// does, and an empty BaseHash says so.
+func pullRequestDiff(
+	allCommits []*models.Commit,
+	startIdx int,
+	endIdx int,
+	listedBranch string,
+	branches []*models.Branch,
+	pullRequests map[string]*models.GithubPullRequest,
+) types.PullRequestDiff {
+	if listedBranch == "" || startIdx < 0 || endIdx >= len(allCommits) {
+		return types.PullRequestDiff{}
+	}
+
+	heads := pullRequestBranchHeads(branches, pullRequests)
+	branchAt := func(idx int) string {
+		return pullRequestBranchAt(allCommits, idx, heads, listedBranch)
+	}
+
+	branch := branchAt(startIdx)
+	diff := types.PullRequestDiff{
+		Branch:        branch,
+		SpansBranches: branchAt(endIdx) != branch,
+		Commits:       allCommits[startIdx : endIdx+1],
+	}
+
+	oldest := allCommits[endIdx]
+	if oldest.IsFirstCommit() {
+		return diff
+	}
+	parentHash := oldest.Parents()[0]
+	_, parentIdx, found := lo.FindIndexOf(allCommits, func(commit *models.Commit) bool {
+		return commit.Hash() == parentHash
+	})
+	if found && allCommits[parentIdx].Status == models.StatusPushed && branchAt(parentIdx) == branch {
+		diff.BaseHash = parentHash
+	}
+	return diff
+}
+
+// pullRequestBranchHeads maps the head commit of each branch that has a pull request to
+// that branch. Where several share a head, the first of them in the list wins. The
+// checked-out branch comes first in the list, so it wins over the others.
+func pullRequestBranchHeads(
+	branches []*models.Branch, pullRequests map[string]*models.GithubPullRequest,
+) map[string]string {
+	heads := map[string]string{}
+	for _, branch := range branches {
+		if _, hasPullRequest := pullRequests[branch.Name]; !hasPullRequest || branch.CommitHash == "" {
+			continue
+		}
+		if _, taken := heads[branch.CommitHash]; !taken {
+			heads[branch.CommitHash] = branch.Name
+		}
+	}
+	return heads
+}
+
+// pullRequestBranchAt returns the branch whose pull request holds the commit at the given
+// index: the nearest branch with a pull request whose head is that commit or one listed
+// above it. A stack of branches lists the commits of each branch above those of the
+// branch it is based on, so this is the branch of the stack that the commit is on.
+// Commits that are in a main branch already are skipped, because a branch whose head is
+// one of them has been merged and doesn't belong to the stack. If no branch with a pull
+// request is found, it is the branch the panel lists, whether or not that one has a pull
+// request.
+func pullRequestBranchAt(
+	commits []*models.Commit, idx int, pullRequestBranchHeads map[string]string, listedBranch string,
+) string {
+	for i := idx; i >= 0; i-- {
+		if commits[i].Status == models.StatusMerged {
+			continue
+		}
+		if branch, ok := pullRequestBranchHeads[commits[i].Hash()]; ok {
+			return branch
+		}
+	}
+	return listedBranch
+}
+
 func NewLocalCommitsContext(c *ContextCommon) *LocalCommitsContext {
+	dropIndicator := &commitDropIndicator{insertionIndex: -1}
 	viewModel := NewLocalCommitsViewModel(
 		func() []*models.Commit { return c.Model().Commits },
 		c,
@@ -61,6 +192,7 @@ func NewLocalCommitsContext(c *ContextCommon) *LocalCommitsContext {
 			startIdx,
 			endIdx,
 			shouldShowGraph(c),
+			commitGraphSymbolSet(c),
 			c.Model().BisectInfo,
 		)
 	}
@@ -71,7 +203,7 @@ func NewLocalCommitsContext(c *ContextCommon) *LocalCommitsContext {
 			if c.Model().WorkingTreeStateAtLastCommitRefresh.Rebasing {
 				result = append(result, &NonModelItem{
 					Index:   0,
-					Content: fmt.Sprintf("--- %s ---", c.Tr.PendingRebaseTodosSectionHeader),
+					Content: formatListSectionHeader(c.Tr.PendingRebaseTodosSectionHeader),
 				})
 			}
 
@@ -90,9 +222,18 @@ func NewLocalCommitsContext(c *ContextCommon) *LocalCommitsContext {
 					c.Tr.PendingRevertsSectionHeader)
 				result = append(result, &NonModelItem{
 					Index:   firstCherryPickOrRevertTodo,
-					Content: fmt.Sprintf("--- %s ---", label),
+					Content: formatListSectionHeader(label),
 				})
 			}
+
+			result = addCommitDropIndicator(
+				result,
+				dropIndicator,
+				c.Tr.MoveCommitsHere,
+				c.Tr.MovingCommitsHere,
+				c.UserConfig().Gui.Spinner,
+				time.Now(),
+			)
 
 			_, firstRealCommit, found := lo.FindIndexOf(
 				c.Model().Commits, func(c *models.Commit) bool {
@@ -103,8 +244,17 @@ func NewLocalCommitsContext(c *ContextCommon) *LocalCommitsContext {
 			}
 			result = append(result, &NonModelItem{
 				Index:   firstRealCommit,
-				Content: fmt.Sprintf("--- %s ---", c.Tr.CommitsSectionHeader),
+				Content: formatListSectionHeader(c.Tr.CommitsSectionHeader),
 			})
+		} else {
+			result = addCommitDropIndicator(
+				result,
+				dropIndicator,
+				c.Tr.MoveCommitsHere,
+				c.Tr.MovingCommitsHere,
+				c.UserConfig().Gui.Spinner,
+				time.Now(),
+			)
 		}
 
 		return result
@@ -113,6 +263,7 @@ func NewLocalCommitsContext(c *ContextCommon) *LocalCommitsContext {
 	ctx := &LocalCommitsContext{
 		LocalCommitsViewModel: viewModel,
 		SearchTrait:           NewSearchTrait(c),
+		dropIndicator:         dropIndicator,
 		ListContextTrait: &ListContextTrait{
 			Context: NewSimpleContext(NewBaseContext(NewBaseContextOpts{
 				View:                        c.Views().Commits,
@@ -137,12 +288,60 @@ func NewLocalCommitsContext(c *ContextCommon) *LocalCommitsContext {
 	return ctx
 }
 
+func addCommitDropIndicator(
+	items []*NonModelItem,
+	indicator *commitDropIndicator,
+	dropLabel string,
+	movingLabel string,
+	spinnerConfig config.SpinnerConfig,
+	now time.Time,
+) []*NonModelItem {
+	if indicator.insertionIndex < 0 {
+		return items
+	}
+	label := dropLabel
+	if indicator.moving {
+		label = fmt.Sprintf("%s %s", movingLabel, presentation.Loader(now, spinnerConfig))
+	}
+
+	insertAt := len(items)
+	for i, item := range items {
+		if item.Index > indicator.insertionIndex {
+			insertAt = i
+			break
+		}
+	}
+
+	return slices.Insert(items, insertAt, &NonModelItem{
+		Index:   indicator.insertionIndex,
+		Content: style.FgCyan.SetBold().Sprintf("━━━━━━ %s ━━━━━━", label),
+		Column:  6, // align with the commit subject
+	})
+}
+
+func (self *LocalCommitsContext) SetDropInsertionIndex(index int) {
+	self.dropIndicator.insertionIndex = index
+	self.dropIndicator.moving = false
+}
+
+func (self *LocalCommitsContext) SetMovingCommitsInsertionIndex(index int) {
+	self.dropIndicator.insertionIndex = index
+	self.dropIndicator.moving = true
+}
+
+func (self *LocalCommitsContext) ClearDropInsertionIndex() {
+	self.dropIndicator.insertionIndex = -1
+	self.dropIndicator.moving = false
+}
+
 type LocalCommitsViewModel struct {
 	*ListViewModel[*models.Commit]
 
 	// If this is true we limit the amount of commits we load, for the sake of keeping things fast.
 	// If the user attempts to scroll past the end of the list, we will load more commits.
-	limitCommits bool
+	// Atomic because a checkout or reset sets it from a worker goroutine while the
+	// commits refresh reads it on the UI thread to decide how many commits to load.
+	limitCommits atomic.Bool
 
 	// If this is true we'll use git log --all when fetching the commits.
 	showWholeGitGraph bool
@@ -151,9 +350,9 @@ type LocalCommitsViewModel struct {
 func NewLocalCommitsViewModel(getModel func() []*models.Commit, c *ContextCommon) *LocalCommitsViewModel {
 	self := &LocalCommitsViewModel{
 		ListViewModel:     NewListViewModel(getModel),
-		limitCommits:      true,
 		showWholeGitGraph: c.UserConfig().Git.Log.ShowWholeGraph,
 	}
+	self.limitCommits.Store(true)
 
 	return self
 }
@@ -221,15 +420,15 @@ func (self *LocalCommitsContext) RefForAdjustingLineNumberInDiff() string {
 }
 
 func (self *LocalCommitsContext) ModelSearchResults(searchStr string, caseSensitive bool) []gocui.SearchPosition {
-	return searchModelCommits(caseSensitive, self.GetCommits(), self.ColumnPositions(), self.ModelIndexToViewIndex, searchStr)
+	return searchModelCommits(caseSensitive, self.GetCommits(), self.ColumnPositions(), self.modelToViewIndexConverter(), searchStr)
 }
 
 func (self *LocalCommitsViewModel) SetLimitCommits(value bool) {
-	self.limitCommits = value
+	self.limitCommits.Store(value)
 }
 
 func (self *LocalCommitsViewModel) GetLimitCommits() bool {
-	return self.limitCommits
+	return self.limitCommits.Load()
 }
 
 func (self *LocalCommitsViewModel) SetShowWholeGitGraph(value bool) {
@@ -245,7 +444,13 @@ func (self *LocalCommitsViewModel) GetCommits() []*models.Commit {
 }
 
 func shouldShowGraph(c *ContextCommon) bool {
-	if c.Modes().Filtering.Active() {
+	// Whether we can draw a graph is a property of the commit list we have
+	// loaded, not of the filtering mode: turning filtering on or off only
+	// reaches the screen when the reloaded list does, and until then the graph
+	// has to keep matching the list that is still on display. Drawing one for a
+	// filtered list is also ruinously slow, because none of the commits in it
+	// are connected to each other, so no pipe ever terminates.
+	if c.Model().CommitsWereFilteredAtLastRefresh {
 		return false
 	}
 
@@ -262,6 +467,18 @@ func shouldShowGraph(c *ContextCommon) bool {
 
 	log.Fatalf("Unknown value for git.log.showGraph: %s. Expected one of: 'always', 'never', 'when-maximised'", value)
 	return false
+}
+
+func commitGraphSymbolSet(c *ContextCommon) graph.SymbolSet {
+	switch c.UserConfig().Gui.CommitGraphStyle {
+	case "detailed":
+		return graph.BranchDrawingSymbols
+	case "auto":
+		if graph.TerminalDrawsBranchDrawingSymbols(c.GocuiGui().Terminal()) {
+			return graph.BranchDrawingSymbols
+		}
+	}
+	return graph.BoxDrawingSymbols
 }
 
 func searchModelCommits(caseSensitive bool, commits []*models.Commit, columnPositions []int,

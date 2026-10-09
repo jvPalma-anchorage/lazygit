@@ -10,8 +10,8 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` <pgup>, K, <ctrl+u> (fn+up/shift+k) `` | Прокрутить вверх главную панель |  |
 | `` <pgdown>, J, <ctrl+d> (fn+down/shift+j) `` | Прокрутить вниз главную панель |  |
 | `` @ `` | Открыть меню журнала команд | View options for the command log e.g. show/hide the command log and focus the command log. |
-| `` P `` | Отправить изменения | Push the current branch to its upstream branch. If no upstream is configured, you will be prompted to configure an upstream branch. |
-| `` p `` | Получить и слить изменения | Pull changes from the remote for the current branch. If no upstream is configured, you will be prompted to configure an upstream branch. |
+| `` P `` | Отправить изменения | Push the current branch to its upstream branch. If no upstream is configured, you will be prompted to configure an upstream branch. If other branches are stacked below the current one and have commits to push, you are offered to push those too. |
+| `` p `` | Получить и слить изменения | Pull changes from the remote for the current branch. If no upstream is configured, you will be prompted to configure an upstream branch. If other branches are stacked below the current one and have changed on the remote, you are offered to update those too. |
 | `` ) `` | Increase rename similarity threshold | Increase the similarity threshold for a deletion and addition pair to be treated as a rename.<br><br>The default can be changed in the config file with the key 'git.renameSimilarityThreshold'. |
 | `` ( `` | Decrease rename similarity threshold | Decrease the similarity threshold for a deletion and addition pair to be treated as a rename.<br><br>The default can be changed in the config file with the key 'git.renameSimilarityThreshold'. |
 | `` } `` | Увеличить размер контекста, отображаемого вокруг изменений в просмотрщике сравнении | Increase the amount of the context shown around changes in the diff view.<br><br>The default can be changed in the config file with the key 'git.diffContextSize'. |
@@ -22,7 +22,9 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` R `` | Обновить | Refresh the git state (i.e. run `git status`, `git branch`, etc in background to update the contents of panels). This does not run `git fetch`. |
 | `` + `` | Следующий режим экрана (нормальный/полуэкранный/полноэкранный) |  |
 | `` _ `` | Предыдущий режим экрана |  |
-| `` \| `` | Cycle pagers | Choose the next pager in the list of configured pagers |
+| `` \| `` | Cycle diff renderers | Choose the next renderer in the list of configured diff renderers. |
+| `` \ `` | Cycle diff renderers (reverse) | Choose the previous renderer in the list of configured diff renderers. |
+| `` <ctrl+g> `` | Jump to file in diff | Pick one of the files of the diff shown in the main view, and scroll the main view to it. The focus stays in this panel. |
 | `` <esc> `` | Отменить |  |
 | `` ? `` | Открыть меню |  |
 | `` <ctrl+s> `` | Просмотреть параметры фильтрации по пути | View options for filtering the commit log, so that only commits matching the filter are shown. |
@@ -30,6 +32,7 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` q, <ctrl+c> `` | Выйти |  |
 | `` <ctrl+z> `` | Suspend the application |  |
 | `` <ctrl+w> `` | Переключить отображение изменении пробелов в просмотрщике сравнении | Toggle whether or not whitespace changes are shown in the diff view.<br><br>The default can be changed in the config file with the key 'git.ignoreWhitespaceInDiffView'. |
+| `` <alt+shift+c> `` | Редактировать файл конфигурации | Open file in external editor. |
 | `` z `` | Отменить (через reflog) (экспериментальный) | Журнал ссылок (reflog) будет использоваться для определения того, какую команду git запустить, чтобы отменить последнюю команду git. Сюда не входят изменения в рабочем дереве; учитываются только коммиты. |
 | `` Z `` | Повторить (через reflog) (экспериментальный) | Журнал ссылок (reflog) будет использоваться для определения того, какую команду git нужно запустить, чтобы повторить последнюю команду git. Сюда не входят изменения в рабочем дереве; учитываются только коммиты. |
 
@@ -110,26 +113,21 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 
 | Key | Action | Info |
 |-----|--------|-------------|
-| `` <tab> `` | Переключиться на другую панель (проиндексированные/непроиндексированные изменения) | Switch to other view (staged/unstaged changes). |
-| `` <esc> `` | Exit back to side panel |  |
-| `` / `` | Найти |  |
-
-## Главная панель (Индексирование)
-
-| Key | Action | Info |
-|-----|--------|-------------|
-| `` <left>, h `` | Выбрать предыдущую часть |  |
-| `` <right>, l `` | Выбрать следующую часть |  |
-| `` v `` | Переключить выборку перетаскивания |  |
+| `` <tab> `` | Switch diff pane | Switch to the other focused diff pane. |
 | `` a `` | Toggle hunk selection | Toggle line-by-line vs. hunk selection mode. |
-| `` <ctrl+o> `` | Скопировать выделенный текст в буфер обмена |  |
+| `` v `` | Переключить выборку перетаскивания |  |
+| `` e `` | Редактировать файл | Open file in external editor. |
 | `` <space> `` | Переключить индекс | Переключить строку в проиндексированные / непроиндексированные |
 | `` d `` | Отменить изменение (git reset) | When unstaged change is selected, discard the change using `git reset`. When staged change is selected, unstage the change. |
-| `` o `` | Открыть файл | Open file in default application. |
-| `` e `` | Редактировать файл | Open file in external editor. |
-| `` <esc> `` | Вернуться к панели файлов |  |
-| `` <tab> `` | Переключиться на другую панель (проиндексированные/непроиндексированные изменения) | Switch to other view (staged/unstaged changes). |
 | `` E `` | Изменить эту часть | Edit selected hunk in external editor. |
+| `` <ctrl+o> `` | Copy selected diff lines to clipboard |  |
+| `` <left>, h `` | Выбрать предыдущую часть |  |
+| `` <right>, l `` | Выбрать следующую часть |  |
+| `` N `` | Go to previous file |  |
+| `` n `` | Go to next file |  |
+| `` <ctrl+g> `` | Jump to file |  |
+| `` G `` | Open pull request at selected line | Open the branch's pull request in your browser, at the line the selection is on, so that you can comment on it there. Only pull requests on GitHub are found. |
+| `` <esc> `` | Exit back to side panel |  |
 | `` c `` | Сохранить изменения | Commit staged changes. |
 | `` w `` | Закоммитить изменения без предварительного хука коммита |  |
 | `` C `` | Сохранить изменения с помощью редактора git |  |
@@ -142,8 +140,25 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 |-----|--------|-------------|
 | `` <mouse wheel down> (fn+up) `` | Прокрутить вниз |  |
 | `` <mouse wheel up> (fn+down) `` | Прокрутить вверх |  |
-| `` <tab> `` | Переключиться на другую панель (проиндексированные/непроиндексированные изменения) | Switch to other view (staged/unstaged changes). |
+| `` <tab> `` | Switch diff pane | Switch to the other focused diff pane. |
+| `` a `` | Toggle hunk selection | Toggle line-by-line vs. hunk selection mode. |
+| `` v `` | Переключить выборку перетаскивания |  |
+| `` e `` | Редактировать файл | Open file in external editor. |
+| `` <space> `` | Переключить индекс | Переключить строку в проиндексированные / непроиндексированные |
+| `` d `` | Отменить изменение (git reset) | When unstaged change is selected, discard the change using `git reset`. When staged change is selected, unstage the change. |
+| `` E `` | Изменить эту часть | Edit selected hunk in external editor. |
+| `` <ctrl+o> `` | Copy selected diff lines to clipboard |  |
+| `` <left>, h `` | Выбрать предыдущую часть |  |
+| `` <right>, l `` | Выбрать следующую часть |  |
+| `` N `` | Go to previous file |  |
+| `` n `` | Go to next file |  |
+| `` <ctrl+g> `` | Jump to file |  |
+| `` G `` | Open pull request at selected line | Open the branch's pull request in your browser, at the line the selection is on, so that you can comment on it there. Only pull requests on GitHub are found. |
 | `` <esc> `` | Exit back to side panel |  |
+| `` c `` | Сохранить изменения | Commit staged changes. |
+| `` w `` | Закоммитить изменения без предварительного хука коммита |  |
+| `` C `` | Сохранить изменения с помощью редактора git |  |
+| `` <ctrl+f> `` | Find base commit for fixup | Find the commit that your current changes are building upon, for the sake of amending/fixing up the commit. This spares you from having to look through your branch's commits one-by-one to see which commit should be amended/fixed up. See docs: <https://github.com/jesseduffield/lazygit/tree/master/docs/Fixup_Commits.md> |
 | `` / `` | Найти |  |
 
 ## Главная панель (Слияние)
@@ -151,7 +166,7 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | Key | Action | Info |
 |-----|--------|-------------|
 | `` <space> `` | Выбрать эту часть |  |
-| `` b `` | Выбрать все части |  |
+| `` b `` | Pick both hunks |  |
 | `` <up>, k `` | Выбрать предыдущую часть |  |
 | `` <down>, j `` | Выбрать следующую часть |  |
 | `` <left>, h `` | Выбрать предыдущий конфликт |  |
@@ -161,22 +176,6 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` o `` | Открыть файл | Open file in default application. |
 | `` M `` | View merge conflict options | View options for resolving merge conflicts. |
 | `` <esc> `` | Вернуться к панели файлов |  |
-
-## Главная панель (сборка патчей)
-
-| Key | Action | Info |
-|-----|--------|-------------|
-| `` <left>, h `` | Выбрать предыдущую часть |  |
-| `` <right>, l `` | Выбрать следующую часть |  |
-| `` v `` | Переключить выборку перетаскивания |  |
-| `` a `` | Toggle hunk selection | Toggle line-by-line vs. hunk selection mode. |
-| `` <ctrl+o> `` | Скопировать выделенный текст в буфер обмена |  |
-| `` o `` | Открыть файл | Open file in default application. |
-| `` e `` | Редактировать файл | Open file in external editor. |
-| `` <space> `` | Добавить/удалить строку(и) для патча |  |
-| `` d `` | Remove lines from commit | Remove the selected lines from this commit. This runs an interactive rebase in the background, so you may get a merge conflict if a later commit also changes these lines. |
-| `` <esc> `` | Выйти из сборщика пользовательских патчей |  |
-| `` / `` | Найти |  |
 
 ## Журнал ссылок (Reflog)
 
@@ -188,6 +187,7 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` o `` | Открыть коммит в браузере |  |
 | `` n `` | Создать новую ветку с этого коммита |  |
 | `` N `` | Move commits to new branch | Create a new branch and move the unpushed commits of the current branch to it. Useful if you meant to start new work and forgot to create a new branch first.<br><br>Note that this disregards the selection, the new branch is always created either from the main branch or stacked on top of the current branch (you get to choose which). |
+| `` w `` | New worktree |  |
 | `` g `` | Просмотреть параметры сброса | View reset options (soft/mixed/hard) for resetting onto selected item. |
 | `` C `` | Скопировать отобранные коммит (cherry-pick) | Mark commit as copied. Then, within the local commits view, you can press `V` to paste (cherry-pick) the copied commit(s) into your checked out branch. At any time you can press `<esc>` to cancel the selection. |
 | `` <ctrl+r> `` | Сбросить отобранную (скопированную \| cherry-picked) выборку коммитов |  |
@@ -195,7 +195,6 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` * `` | Select commits of current branch |  |
 | `` 0 `` | Focus main view |  |
 | `` <enter> `` | Просмотреть коммиты |  |
-| `` w `` | View worktree options |  |
 | `` / `` | Filter the current view by text |  |
 
 ## Коммиты
@@ -231,13 +230,13 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` o `` | Открыть коммит в браузере |  |
 | `` n `` | Создать новую ветку с этого коммита |  |
 | `` N `` | Move commits to new branch | Create a new branch and move the unpushed commits of the current branch to it. Useful if you meant to start new work and forgot to create a new branch first.<br><br>Note that this disregards the selection, the new branch is always created either from the main branch or stacked on top of the current branch (you get to choose which). |
+| `` w `` | New worktree |  |
 | `` g `` | Просмотреть параметры сброса | View reset options (soft/mixed/hard) for resetting onto selected item. |
 | `` C `` | Скопировать отобранные коммит (cherry-pick) | Mark commit as copied. Then, within the local commits view, you can press `V` to paste (cherry-pick) the copied commit(s) into your checked out branch. At any time you can press `<esc>` to cancel the selection. |
 | `` <ctrl+t> `` | Open external diff tool (git difftool) |  |
 | `` * `` | Select commits of current branch |  |
 | `` 0 `` | Focus main view |  |
 | `` <enter> `` | Просмотреть файлы выбранного элемента |  |
-| `` w `` | View worktree options |  |
 | `` / `` | Найти |  |
 
 ## Локальные Ветки
@@ -249,6 +248,7 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` <space> `` | Переключить | Checkout selected item. |
 | `` n `` | Новая ветка |  |
 | `` N `` | Move commits to new branch | Create a new branch and move the unpushed commits of the current branch to it. Useful if you meant to start new work and forgot to create a new branch first.<br><br>Note that this disregards the selection, the new branch is always created either from the main branch or stacked on top of the current branch (you get to choose which). |
+| `` w `` | New worktree |  |
 | `` o `` | Создать запрос на принятие изменений |  |
 | `` O `` | Создать параметры запроса принятие изменений |  |
 | `` G `` | Open pull request in browser |  |
@@ -259,7 +259,7 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` d `` | Delete | View delete options for local/remote branch. |
 | `` r `` | Перебазировать переключённую ветку на эту ветку | Rebase the checked-out branch onto the selected branch. |
 | `` M `` | Слияние с текущей переключённой веткой | View options for merging the selected item into the current branch (regular merge, squash merge) |
-| `` f `` | Перемотать эту ветку вперёд из её upstream-ветки | Fast-forward selected branch from its upstream. |
+| `` f `` | Перемотать эту ветку вперёд из её upstream-ветки | Fast-forward selected branch from its upstream. If the branch has diverged from its upstream because the upstream branch was rewritten, and it has no commits of its own, it is reset to its upstream instead. This needs reflogs to be enabled; a bare repository doesn't keep them by default (core.logAllRefUpdates). |
 | `` T `` | Создать тег |  |
 | `` s `` | Порядок сортировки |  |
 | `` g `` | Просмотреть параметры сброса |  |
@@ -268,7 +268,6 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` <ctrl+t> `` | Open external diff tool (git difftool) |  |
 | `` 0 `` | Focus main view |  |
 | `` <enter> `` | Просмотреть коммиты |  |
-| `` w `` | View worktree options |  |
 | `` / `` | Filter the current view by text |  |
 
 ## Меню
@@ -297,6 +296,7 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` o `` | Открыть коммит в браузере |  |
 | `` n `` | Создать новую ветку с этого коммита |  |
 | `` N `` | Move commits to new branch | Create a new branch and move the unpushed commits of the current branch to it. Useful if you meant to start new work and forgot to create a new branch first.<br><br>Note that this disregards the selection, the new branch is always created either from the main branch or stacked on top of the current branch (you get to choose which). |
+| `` w `` | New worktree |  |
 | `` g `` | Просмотреть параметры сброса | View reset options (soft/mixed/hard) for resetting onto selected item. |
 | `` C `` | Скопировать отобранные коммит (cherry-pick) | Mark commit as copied. Then, within the local commits view, you can press `V` to paste (cherry-pick) the copied commit(s) into your checked out branch. At any time you can press `<esc>` to cancel the selection. |
 | `` <ctrl+r> `` | Сбросить отобранную (скопированную \| cherry-picked) выборку коммитов |  |
@@ -304,7 +304,6 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` * `` | Select commits of current branch |  |
 | `` 0 `` | Focus main view |  |
 | `` <enter> `` | Просмотреть файлы выбранного элемента |  |
-| `` w `` | View worktree options |  |
 | `` / `` | Найти |  |
 
 ## Подмодули
@@ -341,7 +340,7 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` <ctrl+t> `` | Open external diff tool (git difftool) |  |
 | `` <space> `` | Переключить файлы включённые в патч | Toggle whether the file is included in the custom patch. See https://github.com/jesseduffield/lazygit#rebase-magic-custom-patches. |
 | `` a `` | Переключить все файлы, включённые в патч | Add/remove all commit's files to custom patch. See https://github.com/jesseduffield/lazygit#rebase-magic-custom-patches. |
-| `` <enter> `` | Введите файл, чтобы добавить выбранные строки в патч (или свернуть каталог переключения) | If a file is selected, enter the file so that you can add/remove individual lines to the custom patch. If a directory is selected, toggle the directory. |
+| `` <enter> `` | Focus file diff / Toggle directory | If a file is selected, focus its diff so you can act on individual lines. If it is a directory, collapse or expand it. |
 | `` ` `` | Переключить вид дерева файлов | Toggle file view between flat and tree layout. Flat layout shows all file paths in a single list, tree layout groups files by directory.<br><br>The default can be changed in the config file with the key 'gui.showFileTree'. |
 | `` - `` | Collapse all files | Collapse all directories in the files tree |
 | `` = `` | Expand all files | Expand all directories in the file tree |
@@ -352,7 +351,6 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 
 | Key | Action | Info |
 |-----|--------|-------------|
-| `` o `` | Открыть файл конфигурации | Open file in default application. |
 | `` e `` | Редактировать файл конфигурации | Open file in external editor. |
 | `` u `` | Проверить обновления |  |
 | `` <enter> `` | Переключиться на последний репозиторий |  |
@@ -367,13 +365,13 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` <ctrl+o> `` | Copy tag to clipboard |  |
 | `` <space> `` | Переключить | Checkout the selected tag as a detached HEAD. |
 | `` n `` | Создать тег | Create new tag from current commit. You'll be prompted to enter a tag name and optional description. |
+| `` w `` | New worktree |  |
 | `` d `` | Delete | View delete options for local/remote tag. |
 | `` P `` | Отправить тег | Push the selected tag to a remote. You'll be prompted to select a remote. |
 | `` g `` | Reset | View reset options (soft/mixed/hard) for resetting onto selected item. |
 | `` <ctrl+t> `` | Open external diff tool (git difftool) |  |
 | `` 0 `` | Focus main view |  |
 | `` <enter> `` | Просмотреть коммиты |  |
-| `` w `` | View worktree options |  |
 | `` / `` | Filter the current view by text |  |
 
 ## Удалённые ветки
@@ -383,6 +381,7 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` <ctrl+o> `` | Скопировать название ветки в буфер обмена |  |
 | `` <space> `` | Переключить | Checkout a new local branch based on the selected remote branch, or the remote branch as a detached head. |
 | `` n `` | Новая ветка |  |
+| `` w `` | New worktree |  |
 | `` M `` | Слияние с текущей переключённой веткой | View options for merging the selected item into the current branch (regular merge, squash merge) |
 | `` r `` | Перебазировать переключённую ветку на эту ветку | Rebase the checked-out branch onto the selected branch. |
 | `` d `` | Delete | Delete the remote branch from the remote. |
@@ -392,7 +391,6 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` <ctrl+t> `` | Open external diff tool (git difftool) |  |
 | `` 0 `` | Focus main view |  |
 | `` <enter> `` | Просмотреть коммиты |  |
-| `` w `` | View worktree options |  |
 | `` / `` | Filter the current view by text |  |
 
 ## Удалённые репозитории
@@ -427,7 +425,7 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` s `` | Stash | Stash all changes. For other variations of stashing, use the view stash options keybinding. |
 | `` S `` | Просмотреть параметры хранилища | View stash options (e.g. stash all, stash staged, stash unstaged). |
 | `` a `` | Все проиндексированные/непроиндексированные | Toggle staged/unstaged for all files in working tree. |
-| `` <enter> `` | Проиндексировать отдельные части/строки для файла или свернуть/развернуть для каталога | If the selected item is a file, focus the staging view so you can stage individual hunks/lines. If the selected item is a directory, collapse/expand it. |
+| `` <enter> `` | Focus file diff / Collapse directory | If the selected item is a file, focus its diff so you can act on individual hunks or lines. If it is a directory, collapse or expand it. |
 | `` d `` | Просмотреть параметры «отмены изменении» | View options for discarding changes to the selected file. |
 | `` g `` | Просмотреть параметры сброса upstream-ветки |  |
 | `` D `` | Reset | View reset options for working tree (e.g. nuking the working tree). |
@@ -448,8 +446,8 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 | `` g `` | Применить припрятанные изменения и тут же удалить их из хранилища | Apply the stash entry to your working directory and remove the stash entry. |
 | `` d `` | Удалить припрятанные изменения из хранилища | Remove the stash entry from the stash list. |
 | `` n `` | Новая ветка | Create a new branch from the selected stash entry. This works by git checking out the commit that the stash entry was created from, creating a new branch from that commit, then applying the stash entry to the new branch as an additional commit. |
+| `` w `` | New worktree |  |
 | `` r `` | Переименовать хранилище |  |
 | `` 0 `` | Focus main view |  |
 | `` <enter> `` | Просмотреть файлы выбранного элемента |  |
-| `` w `` | View worktree options |  |
 | `` / `` | Filter the current view by text |  |

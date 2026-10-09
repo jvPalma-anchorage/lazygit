@@ -1,7 +1,6 @@
 package context
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/jesseduffield/lazygit/pkg/commands/git_commands"
@@ -22,10 +21,33 @@ type SubCommitsContext struct {
 }
 
 var (
-	_ types.IListContext       = (*SubCommitsContext)(nil)
-	_ types.DiffableContext    = (*SubCommitsContext)(nil)
-	_ types.ISearchableContext = (*SubCommitsContext)(nil)
+	_ types.IListContext           = (*SubCommitsContext)(nil)
+	_ types.DiffableContext        = (*SubCommitsContext)(nil)
+	_ types.ISearchableContext     = (*SubCommitsContext)(nil)
+	_ types.DiffMainViewContext    = (*SubCommitsContext)(nil)
+	_ types.PullRequestDiffContext = (*SubCommitsContext)(nil)
 )
+
+func (self *SubCommitsContext) GetDiffMainViewType() types.DiffMainViewType {
+	return types.DiffMainViewTypePatchBuilding
+}
+
+// This panel shows the commits of the branch it was entered from, and of the branches
+// below it in a stack. PullRequestDiff looks for their pull request among those
+// branches. The panel is also entered from a tag, a remote branch and the reflog, none of
+// which a pull request is made from.
+func (self *SubCommitsContext) PullRequestDiff() types.PullRequestDiff {
+	branch, ok := self.GetRef().(*models.Branch)
+	if !ok {
+		return types.PullRequestDiff{}
+	}
+
+	_, selectionStart, selectionEnd := self.GetSelectedItems()
+	startIdx, endIdx := commitRangeShownInDiff(
+		selectionStart, selectionEnd, self.GetSelectedLineIdx(), self.GetSelectedRefRangeForDiffFiles())
+	return pullRequestDiff(
+		self.GetCommits(), startIdx, endIdx, branch.Name, self.c.Model().Branches, self.c.Model().PullRequestsMap)
+}
 
 func NewSubCommitsContext(
 	c *ContextCommon,
@@ -76,6 +98,7 @@ func NewSubCommitsContext(
 			startIdx,
 			endIdx,
 			shouldShowGraph(c),
+			commitGraphSymbolSet(c),
 			git_commands.NewNullBisectInfo(),
 		)
 	}
@@ -90,7 +113,7 @@ func NewSubCommitsContext(
 			}
 			result = append(result, &NonModelItem{
 				Index:   upstreamIdx,
-				Content: fmt.Sprintf("--- %s ---", c.Tr.DivergenceSectionHeaderRemote),
+				Content: formatListSectionHeader(c.Tr.DivergenceSectionHeaderRemote),
 			})
 
 			_, localIdx, found := lo.FindIndexOf(
@@ -100,7 +123,7 @@ func NewSubCommitsContext(
 			}
 			result = append(result, &NonModelItem{
 				Index:   localIdx,
-				Content: fmt.Sprintf("--- %s ---", c.Tr.DivergenceSectionHeaderLocal),
+				Content: formatListSectionHeader(c.Tr.DivergenceSectionHeaderLocal),
 			})
 		}
 
@@ -223,7 +246,7 @@ func (self *SubCommitsContext) RefForAdjustingLineNumberInDiff() string {
 }
 
 func (self *SubCommitsContext) ModelSearchResults(searchStr string, caseSensitive bool) []gocui.SearchPosition {
-	return searchModelCommits(caseSensitive, self.GetCommits(), self.ColumnPositions(), self.ModelIndexToViewIndex, searchStr)
+	return searchModelCommits(caseSensitive, self.GetCommits(), self.ColumnPositions(), self.modelToViewIndexConverter(), searchStr)
 }
 
 func (self *SubCommitsContext) IndexForGotoBottom() int {

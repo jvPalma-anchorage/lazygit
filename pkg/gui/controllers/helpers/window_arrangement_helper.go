@@ -10,7 +10,6 @@ import (
 	"github.com/jesseduffield/lazygit/pkg/config"
 	"github.com/jesseduffield/lazygit/pkg/gui/types"
 	"github.com/jesseduffield/lazygit/pkg/utils"
-	"github.com/samber/lo"
 	"golang.org/x/exp/slices"
 )
 
@@ -51,9 +50,17 @@ type WindowArrangementArgs struct {
 	// Name of the current side window (i.e. the current window in the left
 	// section of the UI)
 	CurrentSideWindow string
+	// Returns the view currently shown in the given window. When a window holds
+	// several tabbed views this is the selected tab, which is what the status and
+	// stash height special-cases key off (rather than the window itself, whose
+	// name is just its first tab).
+	ActiveViewForWindow func(window string) string
+	// Returns the number of content lines of the view currently shown in the given
+	// window. Used by the shrink-to-content feature to size a panel to its content.
+	ContentHeightForWindow func(window string) int
 	// Whether the main panel is split (as is the case e.g. when a file has both
 	// staged and unstaged changes)
-	SplitMainPanel bool
+	MainPanes types.MainPanes
 	// The current screen mode (normal, half, full)
 	ScreenMode types.ScreenMode
 	// The content shown on the bottom left of the screen when showing a loader
@@ -79,43 +86,37 @@ type WindowArrangementArgs struct {
 	IsReviewMode bool
 }
 
-// sideWindowNamesForArgs returns the side-panel windows for the current arrangement:
-// the dedicated PR review windows in review mode, otherwise the normal
-// (config-gated) set.
-func sideWindowNamesForArgs(args WindowArrangementArgs) []string {
-	if args.IsReviewMode {
-		return ReviewSideWindowNames()
-	}
-	return SideWindowNames(args.UserConfig)
-}
-
 func (self *WindowArrangementHelper) GetWindowDimensions(informationStr string, appStatus string) map[string]boxlayout.Dimensions {
 	width, height := self.c.GocuiGui().Size()
 	repoState := self.c.State().GetRepoState()
 
 	var searchPrefix string
-	if filterableContext, ok := repoState.GetSearchState().Context.(types.IFilterableContext); ok {
-		searchPrefix = filterableContext.FilterPrefix(self.c.Tr)
+	if _, ok := repoState.GetSearchState().Context.(types.IFilterableContext); ok {
+		searchPrefix = self.c.Tr.FilterPrefix
 	} else {
 		searchPrefix = self.c.Tr.SearchPrefix
 	}
 
 	args := WindowArrangementArgs{
-		Width:             width,
-		Height:            height,
-		UserConfig:        self.c.UserConfig(),
-		CurrentWindow:     self.c.Context().CurrentStatic().GetWindowName(),
-		CurrentSideWindow: self.c.Context().CurrentSide().GetWindowName(),
-		SplitMainPanel:    repoState.GetSplitMainPanel(),
-		ScreenMode:        repoState.GetScreenMode(),
-		AppStatus:         appStatus,
-		InformationStr:    informationStr,
-		ShowExtrasWindow:  self.c.State().GetShowExtrasWindow(),
-		InDemo:            self.c.InDemo(),
-		IsAnyModeActive:   self.modeHelper.IsAnyModeActive(),
-		InSearchPrompt:    repoState.InSearchPrompt(),
-		SearchPrefix:      searchPrefix,
-		IsReviewMode:      repoState.GetReviewMode(),
+		Width:               width,
+		Height:              height,
+		UserConfig:          self.c.UserConfig(),
+		CurrentWindow:       self.c.Context().CurrentStatic().GetWindowName(),
+		CurrentSideWindow:   self.c.Context().CurrentSide().GetWindowName(),
+		ActiveViewForWindow: self.windowHelper.GetViewNameForWindow,
+		ContentHeightForWindow: func(window string) int {
+			return self.windowHelper.GetContextForWindow(window).TotalContentHeight()
+		},
+		MainPanes:        repoState.GetMainPanes(),
+		ScreenMode:       repoState.GetScreenMode(),
+		AppStatus:        appStatus,
+		InformationStr:   informationStr,
+		ShowExtrasWindow: self.c.State().GetShowExtrasWindow(),
+		InDemo:           self.c.InDemo(),
+		IsAnyModeActive:  self.modeHelper.IsAnyModeActive(),
+		InSearchPrompt:   repoState.InSearchPrompt(),
+		SearchPrefix:     searchPrefix,
+		IsReviewMode:     repoState.GetReviewMode(),
 	}
 
 	return GetWindowDimensions(args)
@@ -219,47 +220,37 @@ func MergeMaps[K comparable, V any](maps ...map[K]V) map[K]V {
 }
 
 func mainSectionChildren(args WindowArrangementArgs) []*boxlayout.Box {
-	// if we're not in split mode we can just show the one main panel. Likewise if
-	// the main panel is focused and we're in full-screen mode
-	if !args.SplitMainPanel || (args.ScreenMode == types.SCREEN_FULL && args.CurrentWindow == "main") {
-		return []*boxlayout.Box{
-			{
-				Window: "main",
-				Weight: 1,
-			},
+	mainPane := &boxlayout.Box{Window: "main", Weight: 1}
+	secondaryPane := &boxlayout.Box{Window: "secondary", Weight: 1}
+
+	switch args.MainPanes {
+	case types.MainPaneOnly:
+		return []*boxlayout.Box{mainPane}
+	case types.SecondaryPaneOnly:
+		return []*boxlayout.Box{secondaryPane}
+	case types.BothMainPanes:
+		// In full-screen mode the focused one takes the whole section anyway.
+		if args.ScreenMode == types.SCREEN_FULL {
+			if args.CurrentWindow == "main" {
+				return []*boxlayout.Box{mainPane}
+			}
+			if args.CurrentWindow == "secondary" {
+				return []*boxlayout.Box{secondaryPane}
+			}
 		}
 	}
 
-	if args.CurrentWindow == "secondary" && args.ScreenMode == types.SCREEN_FULL {
-		return []*boxlayout.Box{
-			{
-				Window: "secondary",
-				Weight: 1,
-			},
-		}
-	}
-
-	mainWeight, secondaryWeight := 1, 1
 	if args.UserConfig.Gui.ExpandFocusedStagingPanel {
-		// Give the focused section 80% of the height (weight 4 vs 1). The split
-		// starts expanded on the top (main / unstaged) section and only inverts
-		// once the bottom (secondary / staged) section is focused.
-		mainWeight, secondaryWeight = 4, 1
+		// Give the focused pane 80% of the space (weight 4 vs 1). The split
+		// starts expanded on the main (unstaged) pane and only inverts once the
+		// secondary (staged) pane is focused.
+		mainPane.Weight, secondaryPane.Weight = 4, 1
 		if args.CurrentWindow == "secondary" {
-			mainWeight, secondaryWeight = 1, 4
+			mainPane.Weight, secondaryPane.Weight = 1, 4
 		}
 	}
 
-	return []*boxlayout.Box{
-		{
-			Window: "main",
-			Weight: mainWeight,
-		},
-		{
-			Window: "secondary",
-			Weight: secondaryWeight,
-		},
-	}
+	return []*boxlayout.Box{mainPane, secondaryPane}
 }
 
 func getMidSectionWeights(args WindowArrangementArgs) (int, int) {
@@ -397,7 +388,7 @@ func infoSectionChildren(args WindowArrangementArgs) []*boxlayout.Box {
 }
 
 func splitMainPanelSideBySide(args WindowArrangementArgs) bool {
-	if !args.SplitMainPanel {
+	if args.MainPanes != types.BothMainPanes {
 		return false
 	}
 
@@ -430,14 +421,15 @@ func getExtrasWindowSize(args WindowArrangementArgs) int {
 	return baseSize + frameSize
 }
 
-// The stash window by default only contains one line so that it's not hogging
+// The stash view by default only contains one line so that it's not hogging
 // too much space, but if you access it it should take up some space. This is
 // the default behaviour when accordion mode is NOT in effect. If it is in effect
-// then when it's accessed it will have weight 2, not 1.
-func getDefaultStashWindowBox(args WindowArrangementArgs) *boxlayout.Box {
-	box := &boxlayout.Box{Window: "stash"}
-	// if the stash window is anywhere in our stack we should enlargen it
-	if args.CurrentSideWindow == "stash" {
+// then when it's accessed it will have weight 2, not 1. The window is passed in
+// because stash may be a tab of a window named after a different first tab.
+func getDefaultStashWindowBox(args WindowArrangementArgs, window string) *boxlayout.Box {
+	box := &boxlayout.Box{Window: window}
+	// if the window showing stash is focused we should enlargen it
+	if args.CurrentSideWindow == window {
 		box.Weight = 1
 	} else {
 		box.Size = 3
@@ -448,6 +440,25 @@ func getDefaultStashWindowBox(args WindowArrangementArgs) *boxlayout.Box {
 
 func sidePanelChildren(args WindowArrangementArgs) func(width int, height int) []*boxlayout.Box {
 	return func(width int, height int) []*boxlayout.Box {
+		windows := SideWindowNames(args.UserConfig, args.IsReviewMode)
+
+		// These thresholds were originally tuned for the default five side panels.
+		// With fewer panels there's less to fit, so scale them down proportionally
+		// to keep using the proportional layout at smaller heights rather than
+		// squashing unnecessarily. We only ever scale down: making more panels
+		// squash sooner tends to work against the reason people add panels.
+		const defaultSidePanelCount = 5
+		minHeightForNormalLayout := min(28, 28*len(windows)/defaultSidePanelCount)
+		minHeightForTallSquashedPanels := min(21, 21*len(windows)/defaultSidePanelCount)
+
+		boxForEachWindow := func(boxForWindow func(window string) *boxlayout.Box) []*boxlayout.Box {
+			boxes := make([]*boxlayout.Box, 0, len(windows))
+			for _, window := range windows {
+				boxes = append(boxes, boxForWindow(window))
+			}
+			return boxes
+		}
+
 		if args.ScreenMode == types.SCREEN_FULL || args.ScreenMode == types.SCREEN_HALF {
 			fullHeightBox := func(window string) *boxlayout.Box {
 				if window == args.CurrentSideWindow {
@@ -463,10 +474,14 @@ func sidePanelChildren(args WindowArrangementArgs) func(width int, height int) [
 				}
 			}
 
-			return lo.Map(sideWindowNamesForArgs(args), func(window string, _ int) *boxlayout.Box {
-				return fullHeightBox(window)
-			})
-		} else if height >= 28 {
+			return boxForEachWindow(fullHeightBox)
+		} else if height >= minHeightForNormalLayout {
+			if args.UserConfig.Gui.ShrinkSidePanelsToContent {
+				if boxes, ok := shrinkToContentSidePanelBoxes(args, windows, height); ok {
+					return boxes
+				}
+			}
+
 			accordionMode := args.UserConfig.Gui.ExpandFocusedSidePanel
 			accordionBox := func(defaultBox *boxlayout.Box) *boxlayout.Box {
 				if accordionMode && defaultBox.Window == args.CurrentSideWindow {
@@ -479,27 +494,34 @@ func sidePanelChildren(args WindowArrangementArgs) func(width int, height int) [
 				return defaultBox
 			}
 
-			return lo.Map(sideWindowNamesForArgs(args), func(window string, _ int) *boxlayout.Box {
-				switch window {
+			normalBox := func(window string) *boxlayout.Box {
+				// The status and stash sizing is a property of those views, so we key
+				// off the tab the window is currently showing, not the window's name
+				// (its first tab): otherwise grouping other tabs behind status or
+				// stash would wrongly impose their compact height on those tabs.
+				switch args.ActiveViewForWindow(window) {
 				case "status":
-					return &boxlayout.Box{Window: "status", Size: 3}
+					// The status view has a fixed height and is not expanded by accordion mode.
+					return &boxlayout.Box{Window: window, Size: 3}
 				case "stash":
-					return accordionBox(getDefaultStashWindowBox(args))
+					return accordionBox(getDefaultStashWindowBox(args, window))
 				case "prList":
 					// The PR browser collapses to a single line when unfocused, giving
 					// the content and activity windows the height (Phase 13.5).
-					if args.CurrentSideWindow == "prList" {
-						return &boxlayout.Box{Window: "prList", Weight: 1}
+					if args.CurrentSideWindow == window {
+						return &boxlayout.Box{Window: window, Weight: 1}
 					}
-					return &boxlayout.Box{Window: "prList", Size: 1}
-				default: // files, branches, commits (and the review content/activity windows)
+					return &boxlayout.Box{Window: window, Size: 1}
+				default:
 					return accordionBox(&boxlayout.Box{Window: window, Weight: 1})
 				}
-			})
+			}
+
+			return boxForEachWindow(normalBox)
 		}
 
 		squashedHeight := 1
-		if height >= 21 {
+		if height >= minHeightForTallSquashedPanels {
 			squashedHeight = 3
 		}
 
@@ -517,8 +539,147 @@ func sidePanelChildren(args WindowArrangementArgs) func(width int, height int) [
 			}
 		}
 
-		return lo.Map(sideWindowNamesForArgs(args), func(window string, _ int) *boxlayout.Box {
-			return squashedSidePanelBox(window)
+		return boxForEachWindow(squashedSidePanelBox)
+	}
+}
+
+// shrinkToContentSidePanelBoxes implements the gui.shrinkSidePanelsToContent
+// feature: rather than giving every side panel an equal share of the height, we
+// size each panel to its own content (plus one blank line, so it's clear there's
+// nothing more below), which stops panels with little content from wasting space.
+//
+// The height freed up by a small panel flows to the panels that have more content
+// than their share; those grow up to their own content and then scroll. If every
+// panel fits its content with room to spare, there's nothing to absorb the
+// leftover, so it's shared among all panels by weight (which, in accordion mode,
+// gives the focused panel more of it).
+//
+// The status panel, and the stash panel when it's not focused, keep their
+// constant height and don't take part; ok is false when there are no panels to
+// size (so the caller falls back to the normal weighted layout).
+func shrinkToContentSidePanelBoxes(args WindowArrangementArgs, windows []string, height int) ([]*boxlayout.Box, bool) {
+	const frameSize = 2
+
+	accordionMode := args.UserConfig.Gui.ExpandFocusedSidePanel
+
+	// A flexible panel is one we size to its content. Fixed panels (the status
+	// panel, and the stash panel when unfocused) get their constant height and
+	// are excluded from the distribution below.
+	type flexiblePanel struct {
+		boxIndex int
+		desired  int // target height: content rows (see below) plus the frame
+		weight   int
+		height   int  // final height, only computed for the room-to-spare case
+		capped   bool // true once it fits its content within its share
+	}
+
+	boxes := make([]*boxlayout.Box, len(windows))
+	flexible := []*flexiblePanel{}
+	availableForFlexible := height
+	for i, window := range windows {
+		focused := window == args.CurrentSideWindow
+
+		// The status and stash sizing is a property of those views, so we key off
+		// the tab the window is currently showing, not the window's name (its first
+		// tab); see the comment on normalBox in sidePanelChildren.
+		activeView := args.ActiveViewForWindow(window)
+		if activeView == "status" || (activeView == "stash" && !focused) {
+			boxes[i] = &boxlayout.Box{Window: window, Size: 3}
+			availableForFlexible -= 3
+			continue
+		}
+
+		weight := 1
+		if accordionMode && focused {
+			weight = args.UserConfig.Gui.ExpandedSidePanelWeight
+		}
+		// Show the content plus a blank line, so it's clear there's nothing more
+		// below, but never fewer than two rows: a lone blank row looks cramped,
+		// and an empty Files panel is the common state right after launching.
+		contentRows := max(args.ContentHeightForWindow(window)+1, 2)
+		flexible = append(flexible, &flexiblePanel{
+			boxIndex: i,
+			desired:  contentRows + frameSize,
+			weight:   weight,
 		})
 	}
+
+	if len(flexible) == 0 || availableForFlexible <= 0 {
+		return nil, false
+	}
+
+	// Water-filling: repeatedly cap the panels whose desired height is no more
+	// than their weighted share of what's left. Capping a panel only raises the
+	// others' shares, so this converges once no further panel fits its content.
+	// Whatever remains is what the still-uncapped panels have to share.
+	remaining := availableForFlexible
+	for {
+		totalWeight := 0
+		for _, p := range flexible {
+			if !p.capped {
+				totalWeight += p.weight
+			}
+		}
+		if totalWeight == 0 {
+			break
+		}
+
+		newlyCapped := []*flexiblePanel{}
+		for _, p := range flexible {
+			if !p.capped && p.desired*totalWeight <= remaining*p.weight {
+				newlyCapped = append(newlyCapped, p)
+			}
+		}
+		if len(newlyCapped) == 0 {
+			break
+		}
+		for _, p := range newlyCapped {
+			p.capped = true
+			remaining -= p.desired
+		}
+	}
+
+	anyUncapped := false
+	for _, p := range flexible {
+		if !p.capped {
+			anyUncapped = true
+		}
+	}
+
+	if anyUncapped {
+		// Some panels have more content than fits: give the ones that fit exactly
+		// their content, and let boxlayout share what's left among the rest by
+		// weight (they'll scroll). This is the common, real-world case.
+		for _, p := range flexible {
+			if p.capped {
+				boxes[p.boxIndex] = &boxlayout.Box{Window: windows[p.boxIndex], Size: p.desired}
+			} else {
+				boxes[p.boxIndex] = &boxlayout.Box{Window: windows[p.boxIndex], Weight: p.weight}
+			}
+		}
+		return boxes, true
+	}
+
+	// Every panel fits its content with room to spare, so no panel needs to
+	// scroll. Share the leftover equally among them, regardless of focus and
+	// accordion mode: enlarging the focused panel here reveals no more content
+	// (it already fits) and would only make panels jump around as focus moves.
+	// Deal out the rounding remainder one row at a time so the heights fill the
+	// available space exactly.
+	base := remaining / len(flexible)
+	extra := remaining % len(flexible)
+	for i, p := range flexible {
+		p.height = p.desired + base
+		if i < extra {
+			p.height++
+		}
+	}
+
+	// boxlayout can't lay out a set of boxes that are all statically sized (it
+	// needs a weighted box to absorb the space), so we hand it the heights as
+	// weights: they sum to the available height, so it reproduces them exactly.
+	for _, p := range flexible {
+		boxes[p.boxIndex] = &boxlayout.Box{Window: windows[p.boxIndex], Weight: p.height}
+	}
+	return boxes, true
 }

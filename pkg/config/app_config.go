@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"runtime"
 	"strings"
 	"time"
@@ -21,17 +22,18 @@ import (
 
 // AppConfig contains the base configuration fields required for lazygit.
 type AppConfig struct {
-	debug                 bool   `long:"debug" env:"DEBUG" default:"false"`
-	version               string `long:"version" env:"VERSION" default:"unversioned"`
-	buildDate             string `long:"build-date" env:"BUILD_DATE"`
-	name                  string `long:"name" env:"NAME" default:"lazygit"`
-	buildSource           string `long:"build-source" env:"BUILD_SOURCE" default:""`
-	userConfig            *UserConfig
-	globalUserConfigFiles []*ConfigFile
-	userConfigFiles       []*ConfigFile
-	userConfigDir         string
-	tempDir               string
-	appState              *AppState
+	debug                  bool   `long:"debug" env:"DEBUG" default:"false"`
+	version                string `long:"version" env:"VERSION" default:"unversioned"`
+	buildDate              string `long:"build-date" env:"BUILD_DATE"`
+	name                   string `long:"name" env:"NAME" default:"lazygit"`
+	buildSource            string `long:"build-source" env:"BUILD_SOURCE" default:""`
+	userConfig             *UserConfig
+	globalUserConfigFiles  []*ConfigFile
+	userConfigFiles        []*ConfigFile
+	userConfigDir          string
+	tempDir                string
+	appState               *AppState
+	githubPullRequestCache *githubPullRequestCache
 }
 
 type AppConfigurer interface {
@@ -51,6 +53,8 @@ type AppConfigurer interface {
 
 	GetAppState() *AppState
 	SaveAppState() error
+	GetCachedGithubPullRequests(repoPath string) ([]CachedPullRequest, error)
+	SaveCachedGithubPullRequests(repoPath string, pullRequests []CachedPullRequest) error
 }
 
 type ConfigFilePolicy int
@@ -107,19 +111,21 @@ func NewAppConfig(
 	if err != nil {
 		return nil, err
 	}
+	githubPullRequestCache := loadGithubPullRequestCache()
 
 	appConfig := &AppConfig{
-		name:                  name,
-		version:               version,
-		buildDate:             date,
-		debug:                 debuggingFlag,
-		buildSource:           buildSource,
-		userConfig:            userConfig,
-		globalUserConfigFiles: configFiles,
-		userConfigFiles:       configFiles,
-		userConfigDir:         configDir,
-		tempDir:               tempDir,
-		appState:              appState,
+		name:                   name,
+		version:                version,
+		buildDate:              date,
+		debug:                  debuggingFlag,
+		buildSource:            buildSource,
+		userConfig:             userConfig,
+		globalUserConfigFiles:  configFiles,
+		userConfigFiles:        configFiles,
+		userConfigDir:          configDir,
+		tempDir:                tempDir,
+		appState:               appState,
+		githubPullRequestCache: githubPullRequestCache,
 	}
 
 	return appConfig, nil
@@ -136,8 +142,23 @@ func findOrCreateConfigDir() (string, error) {
 	return folder, os.MkdirAll(folder, 0o755)
 }
 
+// KeybindingPlatform returns the platform whose default keybindings should be
+// used. Normally this is the OS we're running on, but it can be overridden with
+// the LAZYGIT_KEYBINDING_PLATFORM environment variable; this is useful e.g. when
+// running lazygit in a Linux container that you access over ssh from a Mac, and
+// you'd rather use the Mac keybindings. An unrecognized value falls back to the
+// real OS, which gives meaningful bindings, rather than to the (arbitrary)
+// non-darwin defaults.
+func KeybindingPlatform() string {
+	platform := os.Getenv("LAZYGIT_KEYBINDING_PLATFORM")
+	if lo.Contains([]string{"darwin", "linux", "windows"}, platform) {
+		return platform
+	}
+	return runtime.GOOS
+}
+
 func loadUserConfigWithDefaults(configFiles []*ConfigFile, isGuiInitialized bool) (*UserConfig, error) {
-	return loadUserConfig(configFiles, GetDefaultConfigForPlatform(runtime.GOOS), isGuiInitialized)
+	return loadUserConfig(configFiles, GetDefaultConfigForPlatform(KeybindingPlatform()), isGuiInitialized)
 }
 
 func loadUserConfig(configFiles []*ConfigFile, base *UserConfig, isGuiInitialized bool) (*UserConfig, error) {
@@ -273,7 +294,11 @@ func computeMigratedConfig(path string, content []byte, changes *ChangesSet) ([]
 	}{
 		{[]string{"gui", "skipUnstageLineWarning"}, "skipDiscardChangeWarning"},
 		{[]string{"keybinding", "universal", "executeCustomCommand"}, "executeShellCommand"},
+		{[]string{"keybinding", "universal", "cyclePagers"}, "cycleDiffRenderers"},
+		{[]string{"keybinding", "universal", "cyclePagersReverse"}, "cycleDiffRenderersReverse"},
 		{[]string{"gui", "windowSize"}, "screenMode"},
+		{[]string{"gui", "wrapLinesInStagingView"}, "wrapLinesInDiffView"},
+		{[]string{"gui", "useHunkModeInStagingView"}, "useHunkModeInDiffView"},
 		{[]string{"keybinding", "files", "openMergeTool"}, "openMergeOptions"},
 	}
 
@@ -284,6 +309,41 @@ func computeMigratedConfig(path string, content []byte, changes *ChangesSet) ([]
 		}
 		if didReplace {
 			changes.Add(fmt.Sprintf("Renamed '%s' to '%s'", strings.Join(pathToReplace.oldPath, "."), pathToReplace.newName))
+		}
+	}
+
+	// This creates gui.branchColorPatterns, so it must run before the move of
+	// that key into gui.theme below.
+	err = migrateBranchColors(&rootNode, changes)
+	if err != nil {
+		return nil, false, fmt.Errorf("Couldn't migrate config file at `%s`: %w", path, err)
+	}
+
+	pathsToMove := []struct {
+		oldPath []string
+		newPath []string
+	}{
+		{
+			[]string{"keybinding", "worktrees", "viewWorktreeOptions"},
+			[]string{"keybinding", "universal", "newWorktree"},
+		},
+		{
+			[]string{"gui", "authorColors"},
+			[]string{"gui", "theme", "authorColors"},
+		},
+		{
+			[]string{"gui", "branchColorPatterns"},
+			[]string{"gui", "theme", "branchColorPatterns"},
+		},
+	}
+
+	for _, pathToMove := range pathsToMove {
+		err, didMove := yaml_utils.MoveYamlKey(&rootNode, pathToMove.oldPath, pathToMove.newPath)
+		if err != nil {
+			return nil, false, fmt.Errorf("Couldn't migrate config file at `%s` for key %s: %w", path, strings.Join(pathToMove.oldPath, "."), err)
+		}
+		if didMove {
+			changes.Add(fmt.Sprintf("Moved '%s' to '%s'", strings.Join(pathToMove.oldPath, "."), strings.Join(pathToMove.newPath, ".")))
 		}
 	}
 
@@ -312,7 +372,12 @@ func computeMigratedConfig(path string, content []byte, changes *ChangesSet) ([]
 		return nil, false, fmt.Errorf("Couldn't migrate config file at `%s`: %w", path, err)
 	}
 
-	err = migratePagers(&rootNode, changes)
+	err = migratePaging(&rootNode, changes)
+	if err != nil {
+		return nil, false, fmt.Errorf("Couldn't migrate config file at `%s`: %w", path, err)
+	}
+
+	err = migratePagersToDiffRenderers(&rootNode, changes)
 	if err != nil {
 		return nil, false, fmt.Errorf("Couldn't migrate config file at `%s`: %w", path, err)
 	}
@@ -449,7 +514,8 @@ func migrateAllBranchesLogCmd(rootNode *yaml.Node, changes *ChangesSet) error {
 			// We will later populate it with the individual allBranchesLogCmd record
 			cmdsKeyNode = &yaml.Node{Kind: yaml.ScalarNode, Value: "allBranchesLogCmds"}
 			cmdsValueNode = &yaml.Node{Kind: yaml.SequenceNode, Content: []*yaml.Node{}}
-			gitNode.Content = append(gitNode.Content,
+			gitNode.Content = append(
+				gitNode.Content,
 				cmdsKeyNode,
 				cmdsValueNode,
 			)
@@ -476,7 +542,9 @@ func migrateAllBranchesLogCmd(rootNode *yaml.Node, changes *ChangesSet) error {
 	})
 }
 
-func migratePagers(rootNode *yaml.Node, changes *ChangesSet) error {
+// Migrate the single 'paging' node to an array of 'pagers'. This is not the final structure, we
+// migrate it to diffRenderers from there in a separate step below.
+func migratePaging(rootNode *yaml.Node, changes *ChangesSet) error {
 	return yaml_utils.TransformNode(rootNode, []string{"git"}, func(gitNode *yaml.Node) error {
 		pagingKeyNode, pagingValueNode := yaml_utils.LookupKey(gitNode, "paging")
 		if pagingKeyNode == nil || pagingValueNode.Kind != yaml.MappingNode {
@@ -485,10 +553,11 @@ func migratePagers(rootNode *yaml.Node, changes *ChangesSet) error {
 		}
 
 		pagersKeyNode, _ := yaml_utils.LookupKey(gitNode, "pagers")
-		if pagersKeyNode != nil {
-			// Conversely, if there *is* already a "pagers" array, we also have nothing to do.
-			// This covers the case where the user keeps both the "paging" section and the "pagers"
-			// array for the sake of easier testing of old versions.
+		diffRenderersKeyNode, _ := yaml_utils.LookupKey(gitNode, "diffRenderers")
+		if pagersKeyNode != nil || diffRenderersKeyNode != nil {
+			// Conversely, if there is already a newer array config, we also have nothing to do.
+			// This covers the case where the user keeps both formats for the sake of easier testing
+			// of old versions.
 			return nil
 		}
 
@@ -496,6 +565,7 @@ func migratePagers(rootNode *yaml.Node, changes *ChangesSet) error {
 		pagingContentCopy := pagingValueNode.Content
 		pagingValueNode.Kind = yaml.SequenceNode
 		pagingValueNode.Tag = "!!seq"
+		pagingValueNode.Style &^= yaml.FlowStyle
 		pagingValueNode.Content = []*yaml.Node{{
 			Kind:    yaml.MappingNode,
 			Content: pagingContentCopy,
@@ -505,6 +575,127 @@ func migratePagers(rootNode *yaml.Node, changes *ChangesSet) error {
 
 		return nil
 	})
+}
+
+func migratePagersToDiffRenderers(rootNode *yaml.Node, changes *ChangesSet) error {
+	return yaml_utils.TransformNode(rootNode, []string{"git"}, func(gitNode *yaml.Node) error {
+		pagersKeyNode, pagersValueNode := yaml_utils.LookupKey(gitNode, "pagers")
+		if pagersKeyNode == nil || pagersValueNode.Kind != yaml.SequenceNode {
+			// If there's no "pagers" section (or it's not a sequence), there's nothing to do
+			return nil
+		}
+
+		diffRenderersKeyNode, _ := yaml_utils.LookupKey(gitNode, "diffRenderers")
+		if diffRenderersKeyNode != nil {
+			// Conversely, if there *is* already a "diffRenderers" array, we also have nothing to do.
+			// This covers the case where the user keeps both the "pagers" and the "diffRenderers"
+			// arrays for the sake of easier testing of old versions.
+			return nil
+		}
+
+		pagersKeyNode.Value = "diffRenderers"
+		changes.Add("Renamed git.pagers to git.diffRenderers")
+
+		for _, diffRendererNode := range pagersValueNode.Content {
+			if diffRendererNode.Kind != yaml.MappingNode {
+				continue
+			}
+
+			pagerKeyNode, pagerValueNode := yaml_utils.LookupKey(diffRendererNode, "pager")
+			externalDiffCommandKeyNode, externalDiffCommandValueNode := yaml_utils.LookupKey(diffRendererNode, "externalDiffCommand")
+			useExternalDiffGitConfigKeyNode, useExternalDiffGitConfigValueNode := yaml_utils.LookupKey(diffRendererNode, "useExternalDiffGitConfig")
+
+			hasPager := hasNonNullScalarValue(pagerValueNode)
+			hasExternalDiffCommand := hasNonNullScalarValue(externalDiffCommandValueNode)
+			useExternalDiffGitConfig := yamlBoolValue(useExternalDiffGitConfigValueNode)
+
+			if hasPager {
+				pagerKeyNode.Value = "command"
+				changes.Add("Renamed 'pager' to 'command' in git pager")
+			} else if hasExternalDiffCommand {
+				externalDiffCommandKeyNode.Value = "command"
+				yaml_utils.AddStringKey(diffRendererNode, "type", "extDiff")
+				changes.Add("Changed 'externalDiffCommand' to 'command' with 'type: extDiff' in git pager")
+			} else if useExternalDiffGitConfig {
+				yaml_utils.RemoveKey(diffRendererNode, "useExternalDiffGitConfig")
+				yaml_utils.AddStringKey(diffRendererNode, "type", "extDiff")
+				changes.Add("Changed 'useExternalDiffGitConfig: true' to 'type: extDiff' in git pager")
+			} else {
+				yaml_utils.AddStringKey(diffRendererNode, "type", "rawGit")
+				diffRendererNode.Style &^= yaml.FlowStyle
+				changes.Add("Changed git pager without a command to 'type: rawGit'")
+			}
+
+			if pagerKeyNode != nil && !hasPager {
+				yaml_utils.RemoveKey(diffRendererNode, "pager")
+				changes.Add("Removed empty 'pager' from git pager")
+			}
+			if externalDiffCommandKeyNode != nil && !hasExternalDiffCommand {
+				yaml_utils.RemoveKey(diffRendererNode, "externalDiffCommand")
+				changes.Add("Removed empty 'externalDiffCommand' from git pager")
+			}
+			if useExternalDiffGitConfigKeyNode != nil && !useExternalDiffGitConfig {
+				yaml_utils.RemoveKey(diffRendererNode, "useExternalDiffGitConfig")
+				if useExternalDiffGitConfigValueNode.Tag == "!!null" {
+					changes.Add("Removed empty 'useExternalDiffGitConfig' from git pager")
+				} else {
+					changes.Add("Removed 'useExternalDiffGitConfig: false' from git pager")
+				}
+			}
+		}
+
+		return nil
+	})
+}
+
+// The deprecated gui.branchColors matched its keys against the part of a branch
+// name before the first slash. Turn each key into a pattern that matches the
+// same branches. If the file has a non-empty gui.branchColorPatterns,
+// gui.branchColors was ignored, so remove it.
+func migrateBranchColors(rootNode *yaml.Node, changes *ChangesSet) error {
+	return yaml_utils.TransformNode(rootNode, []string{"gui"}, func(guiNode *yaml.Node) error {
+		branchColorsKeyNode, branchColorsValueNode := yaml_utils.LookupKey(guiNode, "branchColors")
+		if branchColorsKeyNode == nil || branchColorsValueNode.Kind != yaml.MappingNode {
+			return nil
+		}
+
+		patternsKeyNode, patternsValueNode := yaml_utils.LookupKey(guiNode, "branchColorPatterns")
+		if patternsKeyNode != nil {
+			switch {
+			case patternsValueNode.Kind == yaml.MappingNode && len(patternsValueNode.Content) > 0:
+				yaml_utils.RemoveKey(guiNode, "branchColors")
+				changes.Add("Removed 'gui.branchColors'; it had no effect because 'gui.branchColorPatterns' is set")
+				return nil
+			case patternsValueNode.Kind == yaml.MappingNode || patternsValueNode.Tag == "!!null":
+				yaml_utils.RemoveKey(guiNode, "branchColorPatterns")
+			default:
+				return nil
+			}
+		}
+
+		branchColorsKeyNode.Value = "branchColorPatterns"
+		for i := 0; i < len(branchColorsValueNode.Content)-1; i += 2 {
+			keyNode := branchColorsValueNode.Content[i]
+			keyNode.Value = "^" + regexp.QuoteMeta(keyNode.Value) + "(/|$)"
+			keyNode.Tag = "!!str"
+		}
+		changes.Add("Converted 'gui.branchColors' to 'gui.branchColorPatterns'")
+
+		return nil
+	})
+}
+
+func hasNonNullScalarValue(node *yaml.Node) bool {
+	return node != nil && node.Kind == yaml.ScalarNode && node.Tag != "!!null" && node.Value != ""
+}
+
+func yamlBoolValue(node *yaml.Node) bool {
+	if node == nil {
+		return false
+	}
+
+	var value bool
+	return node.Decode(&value) == nil && value
 }
 
 func (c *AppConfig) GetDebug() bool {
@@ -533,6 +724,20 @@ func (c *AppConfig) GetUserConfig() *UserConfig {
 // GetAppState returns the app state
 func (c *AppConfig) GetAppState() *AppState {
 	return c.appState
+}
+
+func (c *AppConfig) GetCachedGithubPullRequests(repoPath string) ([]CachedPullRequest, error) {
+	if c.githubPullRequestCache == nil {
+		return nil, nil
+	}
+	return c.githubPullRequestCache.get(repoPath), c.githubPullRequestCache.takeLoadError()
+}
+
+func (c *AppConfig) SaveCachedGithubPullRequests(repoPath string, pullRequests []CachedPullRequest) error {
+	if c.githubPullRequestCache == nil {
+		return nil
+	}
+	return c.githubPullRequestCache.save(repoPath, pullRequests)
 }
 
 func (c *AppConfig) GetUserConfigPaths() []string {
@@ -695,21 +900,16 @@ func (c *AppConfig) SaveGlobalUserConfig() {
 // AppState stores data between runs of the app like when the last update check
 // was performed and which other repos have been checked out
 type AppState struct {
-	LastUpdateCheck        int64
-	RecentRepos            []string
-	StartupPopupVersion    int
-	DidShowHunkStagingHint bool
-	LastVersion            string // this is the last version the user was using, for the purpose of showing release notes
+	LastUpdateCheck     int64
+	RecentRepos         []string
+	StartupPopupVersion int
+	LastVersion         string // this is the last version the user was using, for the purpose of showing release notes
 
 	// these are for shell commands typed in directly, not for custom commands in the lazygit config.
 	// For backwards compatibility we keep the old name in yaml files.
 	ShellCommandsHistory []string `yaml:"customcommandshistory"`
 
 	HideCommandLog bool
-
-	// Cache of GitHub pull requests per repo path, so that PR info can be
-	// shown instantly on startup before the async refresh completes.
-	GithubPullRequests map[string][]CachedPullRequest `yaml:"githubPullRequests"`
 
 	// ReviewedFiles tracks per-file "viewed" marks for PR review mode, keyed by a
 	// stable composite key (see ReviewedFileKey). A mark is honored only while the
@@ -753,21 +953,9 @@ func (s ReviewedFileState) MatchesContent(currentOid string, currentPatchHash st
 	return false
 }
 
-// CachedPullRequest stores the essential fields of a GitHub pull request
-// for persisting in the app state cache.
-type CachedPullRequest struct {
-	HeadRefName         string `yaml:"headRefName"`
-	Number              int    `yaml:"number"`
-	Title               string `yaml:"title"`
-	State               string `yaml:"state"`
-	Url                 string `yaml:"url"`
-	HeadRepositoryOwner string `yaml:"headRepositoryOwner"`
-}
-
 func getDefaultAppState() *AppState {
 	return &AppState{
-		GithubPullRequests: make(map[string][]CachedPullRequest),
-		ReviewedFiles:      make(map[string]ReviewedFileState),
+		ReviewedFiles: make(map[string]ReviewedFileState),
 	}
 }
 

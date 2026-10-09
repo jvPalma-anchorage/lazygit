@@ -18,12 +18,20 @@ func (config *UserConfig) Validate() error {
 		[]string{"dashboard", "allBranchesLog"}); err != nil {
 		return err
 	}
+	if err := validateEnum("gui.colorScheme", config.Gui.ColorScheme,
+		[]string{"auto", "dark", "light"}); err != nil {
+		return err
+	}
 	if err := validateEnum("gui.showDivergenceFromBaseBranch", config.Gui.ShowDivergenceFromBaseBranch,
 		[]string{"none", "onlyArrow", "arrowAndNumber"}); err != nil {
 		return err
 	}
 	if err := validateEnum("gui.fileTreeSortOrder", config.Gui.FileTreeSortOrder,
 		[]string{"mixed", "filesFirst", "foldersFirst"}); err != nil {
+		return err
+	}
+	if err := validateEnum("gui.commitGraphStyle", config.Gui.CommitGraphStyle,
+		[]string{"auto", "classic", "detailed"}); err != nil {
 		return err
 	}
 	if err := validateEnum("git.autoForwardBranches", config.Git.AutoForwardBranches,
@@ -46,6 +54,9 @@ func (config *UserConfig) Validate() error {
 		[]string{"always", "never", "when-maximised"}); err != nil {
 		return err
 	}
+	if err := validateDiffRenderers(config.Git.DiffRenderers); err != nil {
+		return err
+	}
 	if err := validateKeybindings(config.Keybinding); err != nil {
 		return err
 	}
@@ -54,6 +65,44 @@ func (config *UserConfig) Validate() error {
 	}
 	if err := validateSpinner(config.Gui.Spinner); err != nil {
 		return err
+	}
+	if err := validateSidePanels(config.Gui.SidePanels); err != nil {
+		return err
+	}
+	return nil
+}
+
+func validateSidePanels(panels []SidePanel) error {
+	seen := map[string]bool{}
+	total := 0
+	for _, panel := range panels {
+		if len(panel) == 0 {
+			return errors.New("gui.sidePanels: a side panel must have at least one tab.")
+		}
+		for _, name := range panel {
+			if !slices.Contains(ValidSidePanelTabs, name) {
+				return fmt.Errorf("gui.sidePanels: unknown side panel '%s'. Allowed values: %s",
+					name, strings.Join(ValidSidePanelTabs, ", "))
+			}
+			if seen[name] {
+				return fmt.Errorf("gui.sidePanels: '%s' is listed more than once; each side panel may appear only once.", name)
+			}
+			seen[name] = true
+			total++
+		}
+	}
+	if total == 0 {
+		return errors.New("gui.sidePanels must not be empty.")
+	}
+	// A lot of code focuses these panels directly (e.g. after resolving a
+	// conflict or popping a stash), so they must always be present; otherwise
+	// that code would focus a hidden panel. Commits may be hidden: focusing it
+	// then lands on the default side panel instead (see
+	// ContextMgr.focusableSideContext).
+	for _, required := range []string{"files", "branches"} {
+		if !seen[required] {
+			return fmt.Errorf("gui.sidePanels: '%s' must be included; it can't be hidden.", required)
+		}
 	}
 	return nil
 }
@@ -69,6 +118,45 @@ func validateSpinner(spinner SpinnerConfig) error {
 		return errors.New("All gui.spinner.frames entries must have the same width.")
 	}
 	return nil
+}
+
+func validateDiffRenderers(diffRenderers []DiffRendererConfig) error {
+	for _, diffRenderer := range diffRenderers {
+		switch diffRenderer.Type {
+		case "stdinFilter", "":
+			if diffRenderer.Command == "" {
+				return errors.New("git.diffRenderers: 'command' must be specified for diff renderer type 'stdinFilter'.")
+			}
+			if len(diffRenderer.Args) > 0 {
+				return errors.New("git.diffRenderers: 'args' cannot be used with diff renderer type 'stdinFilter'.")
+			}
+			if err := validateDiffRendererCommand(diffRenderer); err != nil {
+				return err
+			}
+		case "extDiff":
+			if len(diffRenderer.Args) > 0 {
+				return errors.New("git.diffRenderers: 'args' cannot be used with diff renderer type 'extDiff'.")
+			}
+			if err := validateDiffRendererCommand(diffRenderer); err != nil {
+				return err
+			}
+		case "rawGit":
+			if diffRenderer.Command != "" {
+				return errors.New("git.diffRenderers: 'command' cannot be used with diff renderer type 'rawGit'.")
+			}
+		default:
+			return fmt.Errorf("git.diffRenderers: unknown type '%s'. Allowed values: stdinFilter, extDiff, rawGit", diffRenderer.Type)
+		}
+	}
+	return nil
+}
+
+// validateDiffRendererCommand resolves the command with made-up values, so that
+// a mistake in it shows up when the config is loaded rather than when a diff
+// is rendered.
+func validateDiffRendererCommand(diffRenderer DiffRendererConfig) error {
+	_, err := diffRenderer.resolveCommand(DiffRendererValues{Width: 80, DiffContext: 3})
+	return err
 }
 
 func validateEnum(name string, value string, allowedValues []string) error {
@@ -114,16 +202,7 @@ func validateKeybindingsRecurse(path string, node any) error {
 }
 
 func validateKeybindings(keybindingConfig KeybindingConfig) error {
-	if err := validateKeybindingsRecurse("", keybindingConfig); err != nil {
-		return err
-	}
-
-	if len(keybindingConfig.Universal.JumpToBlock) != 5 {
-		return fmt.Errorf("keybinding.universal.jumpToBlock must have 5 elements; found %d.",
-			len(keybindingConfig.Universal.JumpToBlock))
-	}
-
-	return nil
+	return validateKeybindingsRecurse("", keybindingConfig)
 }
 
 func validateCustomCommandKey(key Keybinding) error {
@@ -131,6 +210,55 @@ func validateCustomCommandKey(key Keybinding) error {
 		if !isValidKeybindingKey(k) {
 			return fmt.Errorf("Unrecognized key '%s' for custom command. For permitted values see %s",
 				k, constants.Links.Docs.CustomKeybindings)
+		}
+	}
+	return nil
+}
+
+// ValidCustomCommandContexts lists the names a custom command's 'context' may
+// use. It mirrors context.AllContextKeys in the gui package, which this package
+// can't import; a test over there keeps the two in sync.
+var ValidCustomCommandContexts = []string{
+	"global",
+	"status",
+	"files",
+	"localBranches",
+	"remotes",
+	"pullRequests",
+	"prReview",
+	"prReviewDiff",
+	"prList",
+	"prOverview",
+	"prConversation",
+	"prChecks",
+	"prCommits",
+	"worktrees",
+	"remoteBranches",
+	"tags",
+	"commits",
+	"reflogCommits",
+	"subCommits",
+	"commitFiles",
+	"stash",
+	"normal",
+	"normalSecondary",
+	"mergeConflicts",
+	"menu",
+	"confirmation",
+	"prompt",
+	"search",
+	"commitMessage",
+	"submodules",
+	"suggestions",
+	"cmdLog",
+}
+
+func validateCustomCommandContext(context string) error {
+	for _, name := range strings.Split(context, ",") {
+		name = strings.TrimSpace(name)
+		if !slices.Contains(ValidCustomCommandContexts, name) {
+			return fmt.Errorf("Unknown context '%s' for custom command. Allowed values: %s",
+				name, strings.Join(ValidCustomCommandContexts, ", "))
 		}
 	}
 	return nil
@@ -161,6 +289,15 @@ func validateCustomCommands(customCommands []CustomCommand) error {
 				return err
 			}
 		} else {
+			// A command in a menu may leave the context out, in which case it is
+			// offered whatever is focused; a top-level one may not, but that is
+			// only noticed when the keybindings are built.
+			if customCommand.Context != "" {
+				if err := validateCustomCommandContext(customCommand.Context); err != nil {
+					return err
+				}
+			}
+
 			for _, prompt := range customCommand.Prompts {
 				if err := validateCustomCommandPrompt(prompt); err != nil {
 					return err
