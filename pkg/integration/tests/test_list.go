@@ -668,6 +668,7 @@ var tests = []*components.IntegrationTest{
 	ui.PrReviewWarmCacheBoot,
 	ui.PrReviewWorkspaceLayout,
 	ui.PromoteTabToSidePanel,
+	ui.PullRequestsTabShowsCachedPrs,
 	ui.RangeSelect,
 	ui.RangeSelectWithAutoscroll,
 	ui.ReloadSidePanels,

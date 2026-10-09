@@ -338,6 +338,10 @@ func (gui *Gui) resetHelpersAndControllers() {
 		controllers.NewPrCommitsController(common),
 	)
 
+	controllers.AttachControllers(gui.State.Contexts.PullRequests,
+		controllers.NewPullRequestsController(common),
+	)
+
 	controllers.AttachControllers(gui.State.Contexts.PrConversation,
 		controllers.NewPrConversationController(common),
 	)

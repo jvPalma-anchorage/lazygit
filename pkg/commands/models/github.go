@@ -1,6 +1,10 @@
 package models
 
-import "strconv"
+import (
+	"net/url"
+	"strconv"
+	"strings"
+)
 
 type GithubPullRequest struct {
 	HeadRefName         string                `json:"headRefName"`
@@ -21,6 +25,20 @@ func (pr *GithubPullRequest) ID() string {
 // URN satisfies types.HasUrn (used for selection tracking in list contexts).
 func (pr *GithubPullRequest) URN() string {
 	return "pull_request-" + pr.ID()
+}
+
+// BaseRepo returns the owner and name of the repository the pull request was
+// opened against, taken from its URL (https://<host>/<owner>/<repo>/pull/<n>).
+func (pr *GithubPullRequest) BaseRepo() (owner string, repo string, ok bool) {
+	parsed, err := url.Parse(pr.Url)
+	if err != nil {
+		return "", "", false
+	}
+	parts := strings.Split(strings.Trim(parsed.Path, "/"), "/")
+	if len(parts) != 4 || parts[2] != "pull" {
+		return "", "", false
+	}
+	return parts[0], parts[1], true
 }
 
 func (pr *GithubPullRequest) UserName() string {

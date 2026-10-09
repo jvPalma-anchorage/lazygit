@@ -202,7 +202,7 @@ func formatSections(tr *i18n.TranslationSet, bindingSections []*bindingSection) 
 
 	for _, section := range bindingSections {
 		content.WriteString(formatTitle(section.title))
-		content.WriteString("| Key | Action | Info |\n")
+		fmt.Fprintf(&content, "| %s | %s | %s |\n", tr.CheatsheetKeyColumn, tr.CheatsheetActionColumn, tr.CheatsheetInfoColumn)
 		content.WriteString("|-----|--------|-------------|\n")
 		for _, binding := range section.bindings {
 			content.WriteString(formatBinding(binding))

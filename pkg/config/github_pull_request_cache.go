@@ -8,7 +8,11 @@ import (
 	"sync"
 )
 
-const githubPullRequestsCacheFileName = "github_pull_requests.json"
+const (
+	githubPullRequestsCacheFileName = "github_pull_requests.json"
+	// The repo's open pull requests, as listed in the Pull Requests tab.
+	githubOpenPullRequestsCacheFileName = "github_open_pull_requests.json"
+)
 
 // CachedPullRequest stores the essential fields of a GitHub pull request.
 type CachedPullRequest struct {
@@ -28,8 +32,8 @@ type githubPullRequestCache struct {
 	loadErr                error
 }
 
-func loadGithubPullRequestCache() *githubPullRequestCache {
-	path, err := githubPullRequestCachePath()
+func loadGithubPullRequestCache(fileName string) *githubPullRequestCache {
+	path, err := githubPullRequestCachePath(fileName)
 	if err != nil {
 		cache := newGithubPullRequestCache("")
 		cache.loadErr = err
@@ -41,13 +45,13 @@ func loadGithubPullRequestCache() *githubPullRequestCache {
 	return cache
 }
 
-func githubPullRequestCachePath() (string, error) {
+func githubPullRequestCachePath(fileName string) (string, error) {
 	path, err := stateFilePath(stateFileName)
 	if err != nil {
 		return "", err
 	}
 
-	return filepath.Join(filepath.Dir(path), githubPullRequestsCacheFileName), nil
+	return filepath.Join(filepath.Dir(path), fileName), nil
 }
 
 func newGithubPullRequestCache(path string) *githubPullRequestCache {

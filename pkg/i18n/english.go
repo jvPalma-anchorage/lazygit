@@ -365,6 +365,13 @@ type TranslationSet struct {
 	CommitMenuTitle                       string
 	RemotesTitle                          string
 	PullRequestsTitle                     string
+	CheatsheetKeyColumn                   string
+	CheatsheetActionColumn                string
+	CheatsheetInfoColumn                  string
+	FailedToLoadPullRequests              string
+	ReviewPullRequest                     string
+	NoPullRequests                        string
+	PullRequestRepoUnknown                string
 	PrReviewTitle                         string
 	PrReviewLoading                       string
 	PrReviewLoadError                     string
@@ -1636,6 +1643,13 @@ func EnglishTranslationSet() *TranslationSet {
 		CommitMenuTitle:                      "Commit Menu",
 		RemotesTitle:                         "Remotes",
 		PullRequestsTitle:                    "Pull Requests",
+		CheatsheetKeyColumn:                  "Key",
+		CheatsheetActionColumn:               "Action",
+		CheatsheetInfoColumn:                 "Info",
+		FailedToLoadPullRequests:             "Failed to load pull requests (is gh authenticated?)",
+		ReviewPullRequest:                    "Open the pull request in review mode",
+		NoPullRequests:                       "No open pull requests",
+		PullRequestRepoUnknown:               "Can't tell which repository this pull request belongs to",
 		PrReviewTitle:                        "PR Review",
 		PrReviewLoading:                      "Loading pull request review...",
 		PrReviewLoadError:                    "Failed to load pull request review: %s",

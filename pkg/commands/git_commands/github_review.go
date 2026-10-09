@@ -2,6 +2,7 @@ package git_commands
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -82,8 +83,13 @@ const reviewDataQuery = `query($owner:String!,$repo:String!,$number:Int!){
 // re-implemented here. The token argument is unused (gh resolves its own auth) and
 // retained only for call-site compatibility.
 func (self *GitHubCommands) FetchPRReviewData(owner string, repo string, number int, _ string) (*PullRequestReviewData, error) {
+	ghExe := ghExecutable()
+	if ghExe == "" {
+		return nil, errors.New("gh not found")
+	}
+
 	cmdArgs := []string{
-		"gh", "api", "graphql",
+		ghExe, "api", "graphql",
 		"-f", "query=" + reviewDataQuery,
 		"-f", "owner=" + owner,
 		"-f", "repo=" + repo,

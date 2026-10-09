@@ -66,7 +66,7 @@ func newTranslationSet(log *logrus.Entry, language string) (*TranslationSet, err
 	return baseSet, nil
 }
 
-//go:embed translations/*.json
+//go:embed translations/*.json translations_local/*.json
 var embedFS embed.FS
 
 // getSupportedLanguageCodes gets all the supported language codes.
@@ -91,6 +91,21 @@ func readLanguageFile(languageCode string) (*TranslationSet, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// translations/ is synced from Crowdin and overwritten by each sync, so
+	// translations this fork adds itself live in translations_local/ and are
+	// applied on top. Unmarshalling into the same struct overrides just the
+	// keys the local file has.
+	localJsonData, err := embedFS.ReadFile(fmt.Sprintf("translations_local/%s.json", languageCode))
+	if err == nil {
+		err = json.Unmarshal(localJsonData, &translationSet)
+		if err != nil {
+			return nil, err
+		}
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		return nil, err
+	}
+
 	return &translationSet, nil
 }
 

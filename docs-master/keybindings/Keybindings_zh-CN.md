@@ -90,6 +90,7 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 |-----|--------|-------------|
 | `` <enter> `` | Scroll the overview |  |
 | `` <space> `` | Start reviewing this pull request |  |
+| `` <enter> `` | Open the pull request in review mode |  |
 | `` / `` | 通过文本过滤当前视图 |  |
 
 ## 子提交

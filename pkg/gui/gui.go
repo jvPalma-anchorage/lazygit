@@ -713,13 +713,15 @@ func (gui *Gui) resetState(startArgs appTypes.StartArgs) types.Context {
 
 	gui.applySidePanelConfig()
 
+	// Also used outside review mode, by the Pull Requests tab's overview preview.
+	contextTree.PrReview.SetMarkdownRenderer(gui.renderMarkdown)
+
 	if startArgs.ReviewTarget != nil {
 		contextTree.PrReview.SetTarget(
 			startArgs.ReviewTarget.Owner,
 			startArgs.ReviewTarget.Repo,
 			startArgs.ReviewTarget.PRNumber,
 		)
-		contextTree.PrReview.SetMarkdownRenderer(gui.renderMarkdown)
 		return contextTree.PrReview
 	}
 

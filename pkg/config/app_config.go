@@ -34,6 +34,7 @@ type AppConfig struct {
 	tempDir                string
 	appState               *AppState
 	githubPullRequestCache *githubPullRequestCache
+	openPullRequestCache   *githubPullRequestCache
 }
 
 type AppConfigurer interface {
@@ -55,6 +56,8 @@ type AppConfigurer interface {
 	SaveAppState() error
 	GetCachedGithubPullRequests(repoPath string) ([]CachedPullRequest, error)
 	SaveCachedGithubPullRequests(repoPath string, pullRequests []CachedPullRequest) error
+	GetCachedOpenPullRequests(repoPath string) ([]CachedPullRequest, error)
+	SaveCachedOpenPullRequests(repoPath string, pullRequests []CachedPullRequest) error
 }
 
 type ConfigFilePolicy int
@@ -111,7 +114,8 @@ func NewAppConfig(
 	if err != nil {
 		return nil, err
 	}
-	githubPullRequestCache := loadGithubPullRequestCache()
+	githubPullRequestCache := loadGithubPullRequestCache(githubPullRequestsCacheFileName)
+	openPullRequestCache := loadGithubPullRequestCache(githubOpenPullRequestsCacheFileName)
 
 	appConfig := &AppConfig{
 		name:                   name,
@@ -126,6 +130,7 @@ func NewAppConfig(
 		tempDir:                tempDir,
 		appState:               appState,
 		githubPullRequestCache: githubPullRequestCache,
+		openPullRequestCache:   openPullRequestCache,
 	}
 
 	return appConfig, nil
@@ -738,6 +743,20 @@ func (c *AppConfig) SaveCachedGithubPullRequests(repoPath string, pullRequests [
 		return nil
 	}
 	return c.githubPullRequestCache.save(repoPath, pullRequests)
+}
+
+func (c *AppConfig) GetCachedOpenPullRequests(repoPath string) ([]CachedPullRequest, error) {
+	if c.openPullRequestCache == nil {
+		return nil, nil
+	}
+	return c.openPullRequestCache.get(repoPath), c.openPullRequestCache.takeLoadError()
+}
+
+func (c *AppConfig) SaveCachedOpenPullRequests(repoPath string, pullRequests []CachedPullRequest) error {
+	if c.openPullRequestCache == nil {
+		return nil
+	}
+	return c.openPullRequestCache.save(repoPath, pullRequests)
 }
 
 func (c *AppConfig) GetUserConfigPaths() []string {

@@ -27,11 +27,7 @@ type PrListContext struct {
 	activeSection int
 	loadStarted   bool
 
-	// overviewData caches each hovered PR's full review data (keyed by entry ID) so
-	// the overview preview is instant on re-hover; overviewLoading guards against
-	// firing a second fetch for a PR already in flight.
-	overviewData    map[string]*git_commands.PullRequestReviewData
-	overviewLoading map[string]bool
+	overviewCache *prOverviewCache
 }
 
 // prListSection is one gh-dash section: a tab title and its matching PRs.
@@ -44,9 +40,8 @@ var _ types.IListContext = (*PrListContext)(nil)
 
 func NewPrListContext(c *ContextCommon) *PrListContext {
 	self := &PrListContext{
-		c:               c,
-		overviewData:    map[string]*git_commands.PullRequestReviewData{},
-		overviewLoading: map[string]bool{},
+		c:             c,
+		overviewCache: newPrOverviewCache(c),
 	}
 
 	viewModel := NewListViewModel(func() []*git_commands.PrListEntry { return self.activePRs() })
@@ -275,39 +270,11 @@ func (self *PrListContext) OverviewDataForSelected() *git_commands.PullRequestRe
 		}
 	}
 
-	if data, ok := self.overviewData[entry.ID()]; ok {
-		return data
-	}
-	self.fetchOverview(entry)
-	return nil
-}
-
-// fetchOverview lazily fetches a non-current PR's review data for its overview
-// preview, once per PR (guarded), off the UI thread. Fixture mode skips the network.
-func (self *PrListContext) fetchOverview(entry *git_commands.PrListEntry) {
+	// Fixture mode skips the network.
 	if os.Getenv("LAZYGIT_PR_LIST_FIXTURE") != "" {
-		return
-	}
-	id := entry.ID()
-	if self.overviewLoading[id] {
-		return
-	}
-	self.overviewLoading[id] = true
-	target := *entry
-
-	self.c.OnWorker(func(_ gocui.Task) error {
-		token := self.c.Git().GitHub.GetAuthToken("github.com")
-		data, err := self.c.Git().GitHub.FetchPRReviewData(target.Owner, target.Repo, target.Number, token)
-		self.c.OnUIThread(func() error {
-			self.overviewLoading[id] = false
-			if err != nil {
-				self.c.Log.Warnf("pr list overview %s: %v", id, err)
-				return nil
-			}
-			self.overviewData[id] = data
-			self.c.PostRefreshUpdate(self)
-			return nil
-		})
 		return nil
+	}
+	return self.overviewCache.get(entry.Owner, entry.Repo, entry.Number, func() {
+		self.c.PostRefreshUpdate(self)
 	})
 }

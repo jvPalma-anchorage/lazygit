@@ -284,6 +284,7 @@ _This file is auto-generated. To update, make the changes in the pkg/i18n direct
 |-----|--------|-------------|
 | `` <enter> `` | Scroll the overview |  |
 | `` <space> `` | Start reviewing this pull request |  |
+| `` <enter> `` | Open the pull request in review mode |  |
 | `` / `` | Filter the current view by text |  |
 
 ## Reflog

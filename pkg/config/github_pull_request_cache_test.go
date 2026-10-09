@@ -14,7 +14,7 @@ func TestGithubPullRequestCachePath(t *testing.T) {
 	stateDir := t.TempDir()
 	t.Setenv("CONFIG_DIR", stateDir)
 
-	path, err := githubPullRequestCachePath()
+	path, err := githubPullRequestCachePath(githubPullRequestsCacheFileName)
 
 	assert.NoError(t, err)
 	assert.Equal(t, filepath.Join(stateDir, githubPullRequestsCacheFileName), path)
@@ -100,7 +100,7 @@ func TestGithubPullRequestCacheDoesNotModifyAppState(t *testing.T) {
 	stateContent := []byte("recentrepos:\n  - /repo\n")
 	assert.NoError(t, os.WriteFile(statePath, stateContent, 0o644))
 
-	cache := loadGithubPullRequestCache()
+	cache := loadGithubPullRequestCache(githubPullRequestsCacheFileName)
 	assert.NoError(t, cache.save("/repo", []CachedPullRequest{{Number: 1}}))
 
 	actualStateContent, err := os.ReadFile(statePath)

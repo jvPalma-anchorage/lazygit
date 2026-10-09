@@ -15,6 +15,7 @@ func NewDummyAppConfig() *AppConfig {
 		userConfig:             userConfig,
 		appState:               &AppState{},
 		githubPullRequestCache: newGithubPullRequestCache(""),
+		openPullRequestCache:   newGithubPullRequestCache(""),
 	}
 	_ = yaml.Unmarshal([]byte{}, appConfig.appState)
 	return appConfig
